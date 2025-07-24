@@ -1,0 +1,1 @@
+// Entry point that renders the main application component
