@@ -1,0 +1,40 @@
+/* This is the user model
+This model will keep track of user information
+User table stores:
+- id (primary key)
+- googleID (string, passed from Google OAuth)
+- displayName (string, user's name)
+- languagePreference (string, user's preferred coding language)
+- difficultyLevel (string, user's preferred difficulty level)
+
+NOTE: I will add a more detailed description of interactions with this model later
+*/
+
+const { Sequelize, DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+    return sequelize.define('User', {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true
+        },
+        googleId: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            unique: true // Ensures that each user has a unique Google ID
+        },
+        displayName: {
+            type: DataTypes.STRING, // Each user will input their display name in profile setup
+            allowNull: false
+        },
+        languagePreference: {
+            type: DataTypes.STRING, // Each user will select their preferred coding language in profile setup
+            allowNull: false
+        },
+        difficultyLevel: {
+            type: DataTypes.STRING, // Each user will select their preferred difficulty level in profile setup
+            allowNull: false
+        }
+    });
+};
