@@ -10,6 +10,7 @@ User table stores:
 NOTE: I will add a more detailed description of interactions with this model later
 */
 
+const { data } = require('react-router-dom');
 const { Sequelize, DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
@@ -35,6 +36,14 @@ module.exports = (sequelize) => {
         difficultyLevel: {
             type: DataTypes.STRING, // Each user will select their preferred difficulty level in profile setup
             allowNull: false
+        },
+        wins: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0 // Initialize wins to 0
+        },
+        totalMatchesPlayed: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0 // Initialize total matches played to 0
         }
     });
 };
