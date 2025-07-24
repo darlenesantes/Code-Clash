@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.IO Test</title>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Socket.IO Client</h1>
+
+  <script>
+    const socket = io("http://localhost:3001");
+
+    socket.on("server_message", (msg) => {
+      console.log("💬 From server:", msg);
+    });
+
+    socket.emit("client_message", "Hello from the HTML file!");
+  </script>
+</body>
+</html>
