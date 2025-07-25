@@ -60,35 +60,20 @@ Turn interview prep into competitive sport. Battle friends on LeetCode problems,
 
 **Environment setup**
 
- Client environment
- cp client/.env.example client/.env.local
+***Client environment***
+ - cp client/.env.example
+ -  client/.env.local
 
- Server environment  
- cp server/.env.example server/.env
+***Server environment***  
+ - cp server/.env.example
+ - server/.env
 
-Start development servers
+**Start development servers**
 bash# From root directory
-npm run dev
+`npm run dev`
 This starts:
-
-Frontend: http://localhost:3000
-Backend: http://localhost:3001
-
-
-
-Project Structure
-Code-Clash/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── pages/         # Main pages (Landing, Login, etc.)
-│   │   ├── components/    # Reusable UI components
-│   │   └── Services/      # API calls and utilities
-│   └── package.json
-├── server/                # Express backend
-│   ├── routes/           # API routes
-│   ├── sockets/          # Socket.io handlers
-│   └── package.json
-└── README.md
+***Frontend:*** http://localhost:3000
+***Backend:*** http://localhost:3001
 
 **Available Scripts**
 ***Root directory:***
