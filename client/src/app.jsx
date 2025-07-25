@@ -31,12 +31,12 @@ const App = () => {
         } else {
           console.log('No authenticated user found');
           // Clear any stale localStorage data
-          authService.clearTokens();
+          authService.clearSession();
         }
       } catch (error) {
         console.error('Failed to initialize app:', error);
         // Clear tokens on error
-        authService.clearTokens();
+        authService.clearSession();
       } finally {
         setIsLoading(false);
       }
@@ -76,7 +76,7 @@ const App = () => {
     } catch (error) {
       console.error('Logout error:', error);
       // Force logout anyway
-      authService.clearTokens();
+      authService.clearSession();
       setUser(null);
       navigate('landing');
     }

@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import './styles/global.css';
 import App from './app';
 
@@ -46,13 +47,11 @@ class ErrorBoundary extends React.Component {
 
 // Create root and render app
 const root = ReactDOM.createRoot(document.getElementById('root'));
-
+console.log(process.env.REACT_APP_GOOGLE_CLIENT_ID)
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+          <App />
     </ErrorBoundary>
   </React.StrictMode>
 );
