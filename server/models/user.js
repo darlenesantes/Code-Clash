@@ -1,14 +1,15 @@
-/* This is the user model
-This model will keep track of user information
-User table stores:
-- id (primary key)
-- googleID (string, passed from Google OAuth)
-- displayName (string, user's name)
-- languagePreference (string, user's preferred coding language)
-- difficultyLevel (string, user's preferred difficulty level)
-
-NOTE: I will add a more detailed description of interactions with this model later
-*/
+/**
+ * This is the user model
+ * This model will keep track of user information
+ * User table stores:
+ * - id (primary key)
+ * - googleID (string, passed from Google OAuth)
+ * - displayName (string, user's name)
+ * - languagePreference (string, user's preferred coding language)
+ * - difficultyLevel (string, user's preferred difficulty level)
+ *
+ * NOTE: I will add a more detailed description of interactions with this model later
+ **/
 
 const { data } = require('react-router-dom');
 const { Sequelize, DataTypes } = require('sequelize');
