@@ -2,31 +2,55 @@ const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
+require('dotenv').config();
 
-const matchSocketHandler = require("./sockets/matchSocket");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
-const server = http.createServer(app); // Create the HTTP server
+const server = http.createServer(app);
 
-app.use(cors());
+// CORS
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true
+}));
+
+// Body parsing
 app.use(express.json());
 
-// Initialize Socket.IO and allow CORS (frontend can connect)
+// Routes
+app.use('/api/auth', authRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// 404 handler
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ message: 'Endpoint not found' });
+});
+
+// Error handler
+app.use((error, req, res, next) => {
+  console.error('Error:', error);
+  res.status(500).json({ message: 'Server error' });
+});
+
+// Socket.IO
 const io = new Server(server, {
-  cors: {
-    origin: "*", // Replace with your frontend URL in production
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "http://localhost:3000" }
 });
 
-// When a client connects, hand the socket to our handler
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-  matchSocketHandler(socket, io);
+  console.log(`User connected: ${socket.id}`);
+  socket.on("disconnect", () => {
+    console.log(`User disconnected: ${socket.id}`);
+  });
 });
 
-// Start the server
+// Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`CodeClash Server running on port ${PORT}`);
 });
