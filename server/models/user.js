@@ -29,21 +29,21 @@ module.exports = (sequelize) => {
         },
         displayName: {
             type: DataTypes.STRING, // Each user will input their display name in profile setup
-            allowNull: false
+            allowNull: true // Display name will be null when the user first signs up, to be filled in profile setup
         },
         languagePreference: {
             type: DataTypes.STRING, // Each user will select their preferred coding language in profile setup
-            allowNull: false
+            allowNull: true // Language preference will be null when the user first signs up, to be filled in profile setup
         },
         difficultyLevel: {
             type: DataTypes.STRING, // Each user will select their preferred difficulty level in profile setup
-            allowNull: false
+            allowNull: true // Difficulty level will be null when the user first signs up, to be filled in profile setup
         },
-        wins: {
+        wins: { // Number of wins the user has in matches
             type: DataTypes.INTEGER,
             defaultValue: 0 // Initialize wins to 0
         },
-        totalMatchesPlayed: {
+        totalMatchesPlayed: { // Total number of matches played by the user
             type: DataTypes.INTEGER,
             defaultValue: 0 // Initialize total matches played to 0
         }
