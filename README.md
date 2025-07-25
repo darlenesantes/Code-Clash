@@ -69,12 +69,11 @@ Turn interview prep into competitive sport. Battle friends on LeetCode problems,
  - server/.env
 
 **Start development servers**
-From root directory
-`npm run dev`
-This starts:
-***Frontend:*** http://localhost:3000
 
-***Backend:*** http://localhost:3001
+From root directory, `npm run dev` starts:
+- ***Frontend:*** http://localhost:3000
+
+- ***Backend:*** http://localhost:3001
 
 **Available Scripts**
 ***Root directory:***
