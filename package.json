@@ -1,10 +1,31 @@
 {
+  "name": "codeclash",
+  "version": "1.0.0",
+  "description": "CodeClash - LeetCode Battles",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "client": "cd client && npm start",
+    "server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\" --names \"SERVER,CLIENT\" --prefix name --prefix-colors \"yellow,cyan\"",
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install"
+  },
   "dependencies": {
     "dotenv": "^17.2.0",
     "pg": "^8.16.3",
     "react-router-dom": "^7.7.0",
     "sequelize": "^6.37.7",
+    "socket.io-client": "^4.8.1",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
   }
 }
+
+
 
