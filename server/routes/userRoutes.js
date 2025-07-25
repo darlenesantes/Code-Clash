@@ -20,7 +20,7 @@ router.post('/auth/google', async (req, res) => {
 
     try {
         const user = await findOrCreateUser(googleId);
-        res.status(200).json(user);
+        res.status(200).json({ id: user.id });
     } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
     }
