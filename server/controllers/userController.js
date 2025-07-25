@@ -31,7 +31,70 @@ async function findOrCreateUser(googleId) {
     
 };
 
+// This controller will be used to update user preferences
+async function updateUserPreferences(userId, language, difficulty) {
+    const user = await User.findByPk(userId);
+
+    // Check if user exists
+    if (!user) {
+        throw new Error('User not found');
+    }
+    // Update user preferences (such as language and difficulty level)
+    user.languagePreference = language;
+    user.difficultyLevel = difficulty;
+    await user.save();
+
+    return user;
+}
+
+// This controller will be used to retrieve user stats, which will be used in the profile view
+// It will return the user's wins, losses, matches played, and win rate
+async function getUserStats(userId) {
+    const user = await User.findByPk(userId);
+
+    // Check if user exists
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    return {
+        wins: user.wins,
+        losses: user.losses,
+        matchesPlayed: user.totalMatchesPlayed,
+        winStreak: user.winStreak,
+        winRate: Number((user.wins / (user.totalMatchesPlayed || 1)).toFixed(2)) // Avoid division by zero
+    };
+}
+
+// This controller will be used to update the user's match record after a game ends
+async function updateMatchStats(userId, isWin) {
+    // isWin is a boolean indicating if the user won the match
+    // If isWin is true, increment wins and win streak, else reset win streak to 0
+    const user = await User.findByPk(userId);
+
+    // Check if user exists
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    // Update user's match stats based on win/loss
+    user.totalMatchesPlayed += 1;
+
+    if (isWin) {
+        user.wins += 1;
+        user.winStreak += 1; // Increment win streak
+    } else {
+        user.winStreak = 0; // Reset win streak on loss
+    }
+
+    await user.save();
+    return user;
+}
+
 // Export the findOrCreateUser function for use in other parts of the application
 module.exports = {
-    findOrCreateUser
+    findOrCreateUser,
+    updateUserPreferences,
+    getUserStats,
+    updateMatchStats
 };
