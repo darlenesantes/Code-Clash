@@ -1,7 +1,6 @@
 // Entry point that renders the main application component
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
 import './styles/global.css';
 import App from './app';
 
@@ -50,9 +49,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <App />
     </ErrorBoundary>
   </React.StrictMode>
 );
