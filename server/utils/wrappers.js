@@ -188,11 +188,10 @@ function runTests() {
   const blocks = input.trim().split('\\n\\n');
 
   blocks.forEach((block, index) => {
-    const [inputLine, expectedLine] = block.trim().split('\\n');
-    const [nStr, edgesStr] = inputLine.split('\\n');
-    const n = JSON.parse(nStr);
-    const edges = JSON.parse(edgesStr);
-    const expected = JSON.parse(expectedLine);
+    const [nLine, edgesLine, ...expectedLines] = block.trim().split('\\n');
+    const n = JSON.parse(nLine);
+    const edges = JSON.parse(edgesLine);
+    const expectedList = expectedLines.map(line => JSON.parse(line));
 
     let result;
     try {
@@ -202,11 +201,11 @@ function runTests() {
       return;
     }
 
-    const passed = result === expected;
+    const passed = expectedList.some(expected => result === expected);
     if (passed) {
       console.log(\`✅ Test \${index + 1}: Passed\`);
     } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${inputLine}\\n  Expected: \${expected}\\n  Got: \${result}\`);
+      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${nLine}, \${edgesLine}\\n  Expected: \${JSON.stringify(expectedList)}\\n  Got: \${result}\`);
     }
   });
 }
