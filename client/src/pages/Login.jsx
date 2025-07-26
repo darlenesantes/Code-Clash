@@ -6,15 +6,16 @@ const Login = ({ navigate, onLogin }) => {
   const [error, setError] = useState('');
 
   const handleGoogleSuccess = (user) => {
+    console.log('Google login successful in Login.jsx:', user);
+    
+    // Call the parent's onLogin function which handles navigation
     onLogin(user);
-    if (!user.setupComplete) {
-      navigate('profile-setup');
-    } else {
-      navigate('landing');
-    }
+    
+    // Don't navigate here - let App.jsx handle it via onLogin
   };
 
   const handleGoogleError = (error) => {
+    console.error('Google login error:', error);
     setError(error);
   };
 
