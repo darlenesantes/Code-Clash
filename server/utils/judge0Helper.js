@@ -8,15 +8,20 @@ const headers = {
   "X-RapidAPI-Host": process.env.JUDGE0_API_HOST
 };
 
+function base64Encode(str) {
+  return Buffer.from(str).toString("base64");
+}
+
 async function runJudge0(code, languageId, expectedOutput = "", stdin = "") {
   const payload = {
-    source_code: code,
+    source_code: base64Encode(code),
     language_id: languageId,
-    stdin: stdin,
-    expected_output: expectedOutput,
-    time_limit: 5,        
-    memory_limit: 128000  
+    stdin: base64Encode(stdin),
+    expected_output: base64Encode(expectedOutput),
+    time_limit: 5,
+    memory_limit: 128000
   };
+
 
   console.log("🌐 Judge0 URL:", JUDGE0_URL);
   console.log("🧾 Headers:", headers);    

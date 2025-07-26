@@ -10,16 +10,15 @@ function runTests() {
   const input = require('fs').readFileSync('/dev/stdin', 'utf8');
   const lines = input.trim().split('\\n\\n');
   lines.forEach((block, index) => {
-    const [numsLine, targetLine, expectedLine] = block.trim().split('\\n');
+    const [numsLine, targetLine, ...expectedLines] = block.trim().split('\\n');
     const nums = JSON.parse(numsLine);
     const target = JSON.parse(targetLine);
-    const expected = JSON.parse(expectedLine);
-    let passed = false;
-    let result = null;
+    const expectedList = expectedLines.map(line => JSON.parse(line));
+    let result, passed = false;
 
     try {
       result = twoSum(nums, target);
-      passed = arraysEqual(result, expected);
+      passed = expectedList.some(expected => arraysEqual(result, expected));
     } catch (e) {
       console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
       return;
@@ -28,22 +27,22 @@ function runTests() {
     if (passed) {
       console.log(\`✅ Test \${index + 1}: Passed\`);
     } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n   Input: \${numsLine}, \${targetLine}\\n   Expected: \${JSON.stringify(expected)}\\n   Got: \${JSON.stringify(result)}\`);
+      console.log(\`❌ Test \${index + 1}: Failed\\n   Input: \${numsLine}, \${targetLine}\\n   Expected: \${JSON.stringify(expectedList)}\\n   Got: \${JSON.stringify(result)}\`);
     }
   });
 }
 
 runTests();
 `;
-
   return `${userCode}\n${testRunner}`;
 }
 
 function formatTestCasesAsStdin(testCases) {
   return testCases
-    .map(({ input, expectedOutput }) => {
+    .map(({ input, expectedOutput, expectedOutputs }) => {
       const [nums, target] = input.split('\n');
-      return `${nums}\n${target}\n${expectedOutput}`;
+      const expectedLines = expectedOutputs || [expectedOutput];
+      return `${nums}\n${target}\n${expectedLines.join('\n')}`;
     })
     .join('\n\n');
 }
