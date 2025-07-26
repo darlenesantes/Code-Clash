@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "description": "CodeClash - LeetCode Battles",
   "private": true,
-  "workspaces": [
-    "client",
-    "server"
-  ],
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "client": "cd client && npm start",
@@ -24,20 +20,5 @@
   },
   "devDependencies": {
     "concurrently": "^7.6.0"
-  },
-  "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=8.0.0"
-  },
-  "keywords": [
-    "codeclash",
-    "leetcode",
-    "coding",
-    "competition",
-    "realtime",
-    "react",
-    "nodejs"
-  ],
-  "author": "CodeClash Team",
-  "license": "MIT"
+  }
 }
