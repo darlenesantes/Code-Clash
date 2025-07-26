@@ -145,25 +145,33 @@ function runTests() {
   const blocks = input.trim().split('\\n\\n');
 
   blocks.forEach((block, index) => {
-    const [inputLine, expectedLine] = block.trim().split('\\n');
+    const [inputLine, ...expectedLines] = block.trim().split('\\n');
     const inputArr = JSON.parse(inputLine);
-    const expected = JSON.parse(expectedLine);
+    const expectedList = expectedLines
+        .map(line => {
+            try {
+            return JSON.parse(line);
+            } catch {
+            return undefined;
+            }
+        })
+        .filter(e => e !== undefined);
 
     let resultArr = [];
     try {
       const root = arrayToBinaryTree(inputArr);
-      const result = inorderTraversal(root);  // expects user's function
+      const result = inorderTraversal(root);
       resultArr = Array.isArray(result) ? result : [];
     } catch (e) {
       console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
       return;
     }
 
-    const passed = arraysEqual(resultArr, expected);
+    const passed = expectedList.some(expected => JSON.stringify(resultArr) === JSON.stringify(expected));
     if (passed) {
       console.log(\`✅ Test \${index + 1}: Passed\`);
     } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${inputLine}\\n  Expected: \${JSON.stringify(expected)}\\n  Got: \${JSON.stringify(resultArr)}\`);
+      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${inputLine}\\n  Expected: \${JSON.stringify(expectedList)}\\n  Got: \${JSON.stringify(resultArr)}\`);
     }
   });
 }
