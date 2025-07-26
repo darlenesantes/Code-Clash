@@ -23,5 +23,81 @@
       { "input": "[2,5,5,11]\n10", "expectedOutputs": ["[1,2]"] },
       { "input": "[1,2]\n3", "expectedOutputs": ["[0,1]"] }
     ]
-  }
+  },
+  {
+    "id": 3,
+    "title": "Add Two Numbers",
+    "category": "linked list",
+    "difficulty": "medium",
+    "description": "You are given two non-empty linked lists representing two non-negative integers. The digits are stored in reverse order, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list.",
+    "functionSignature": {
+        "javascript": "function addTwoNumbers(l1, l2) {\n  // your code here\n}",
+        "python": "def add_two_numbers(l1, l2):\n    # your code here\n    pass",
+        "java": "public ListNode addTwoNumbers(ListNode l1, ListNode l2) {\n    // your code here\n    return null;\n}",
+        "cpp": "ListNode* addTwoNumbers(ListNode* l1, ListNode* l2) {\n    // your code here\n    return nullptr;\n}"
+    },
+    "testCases": [
+        { "input": "[2,4,3]\n[5,6,4]", "expectedOutputs": ["[7,0,8]"] },
+        { "input": "[0]\n[0]", "expectedOutputs": ["[0]"] },
+        { "input": "[9,9,9,9,9,9,9]\n[9,9,9,9]", "expectedOutputs": ["[8,9,9,9,0,0,0,1]"] },
+        { "input": "[1]\n[9,9,9]", "expectedOutputs": ["[0,0,0,1]"] },
+        { "input": "[9]\n[1]", "expectedOutputs": ["[0,1]"] },
+        { "input": "[1,8]\n[0]", "expectedOutputs": ["[1,8]"] },
+        { "input": "[5]\n[5]", "expectedOutputs": ["[0,1]"] },
+        { "input": "[2,4]\n[5,6,4]", "expectedOutputs": ["[7,0,5]"] },
+        { "input": "[0,1]\n[0,1,2]", "expectedOutputs": ["[0,2,2]"] },
+        { "input": "[1,2,3]\n[0,0,0]", "expectedOutputs": ["[1,2,3]"] }
+    ]
+    },
+    {
+  "id": 4,
+  "title": "Binary Tree Inorder Traversal",
+  "category": "binary tree",
+  "difficulty": "medium",
+  "description": "Given the root of a binary tree, return the inorder traversal of its nodes' values.",
+  "functionSignature": {
+    "javascript": "function inorderTraversal(root) {\n  // your code here\n}",
+    "python": "def inorder_traversal(root):\n    # your code here\n    pass",
+    "java": "public List<Integer> inorderTraversal(TreeNode root) {\n    // your code here\n    return new ArrayList<>();\n}",
+    "cpp": "vector<int> inorderTraversal(TreeNode* root) {\n    // your code here\n    return {};\n}"
+  },
+  "testCases": [
+    { "input": "[1,null,2,3]", "expectedOutputs": ["[1,3,2]"] },
+    { "input": "[]", "expectedOutputs": ["[]"] },
+    { "input": "[1]", "expectedOutputs": ["[1]"] },
+    { "input": "[1,2]", "expectedOutputs": ["[2,1]"] },
+    { "input": "[1,null,2]", "expectedOutputs": ["[1,2]"] },
+    { "input": "[3,1,4,null,2]", "expectedOutputs": ["[1,2,3,4]"] },
+    { "input": "[5,3,6,2,4]", "expectedOutputs": ["[2,3,4,5,6]"] },
+    { "input": "[2,null,3,null,4,null,5]", "expectedOutputs": ["[2,3,4,5]"] },
+    { "input": "[5,1,6,null,null,null,8]", "expectedOutputs": ["[1,5,6,8]"] },
+    { "input": "[1,2,3,4,5]", "expectedOutputs": ["[4,2,5,1,3]"] }
+  ]
+},
+{
+  "id": 5,
+  "title": "Number of Connected Components in an Undirected Graph",
+  "category": "graph",
+  "difficulty": "medium",
+  "description": "You have a graph of `n` nodes. You are given an integer `n` and an array `edges` where `edges[i] = [a_i, b_i]` indicates that there is an edge between a_i and b_i. Return the number of connected components in the graph.",
+  "functionSignature": {
+    "javascript": "function countComponents(n, edges) {\n  // your code here\n}",
+    "python": "def count_components(n, edges):\n    # your code here\n    pass",
+    "java": "public int countComponents(int n, int[][] edges) {\n    // your code here\n    return 0;\n}",
+    "cpp": "int countComponents(int n, vector<vector<int>>& edges) {\n    // your code here\n    return 0;\n}"
+  },
+  "testCases": [
+    { "input": "5\n[[0,1],[1,2],[3,4]]", "expectedOutputs": ["2"] },
+    { "input": "5\n[[0,1],[1,2],[2,3],[3,4]]", "expectedOutputs": ["1"] },
+    { "input": "4\n[[2,3],[1,2],[1,3]]", "expectedOutputs": ["2"] },
+    { "input": "2\n[]", "expectedOutputs": ["2"] },
+    { "input": "3\n[[0,1],[1,2]]", "expectedOutputs": ["1"] },
+    { "input": "4\n[[0,1],[2,3]]", "expectedOutputs": ["2"] },
+    { "input": "6\n[[0,1],[2,3],[4,5]]", "expectedOutputs": ["3"] },
+    { "input": "1\n[]", "expectedOutputs": ["1"] },
+    { "input": "3\n[[0,1],[0,2]]", "expectedOutputs": ["1"] },
+    { "input": "4\n[[0,1]]", "expectedOutputs": ["3"] }
+  ]
+}
+
 ]
