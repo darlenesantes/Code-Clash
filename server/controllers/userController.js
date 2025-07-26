@@ -1,6 +1,12 @@
 /**
  * User Controller
  * Handles user-related actions
+ * 
+ * These functions interact with the User model to perform operations such as:
+ * - finding or creating a user based on Google ID
+ * - updating user preferences
+ * - retrieving user stats (wins, losses, matches played, win rate)
+ * - updating match stats after a game ends
  */
 
 const { User } = require('../models');
