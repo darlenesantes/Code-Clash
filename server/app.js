@@ -5,6 +5,9 @@ const { Server } = require("socket.io");
 require('dotenv').config();
 
 const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+const gameRoutes = require("./routes/gameRoutes");
+
 
 const app = express();
 const server = http.createServer(app);
@@ -20,6 +23,8 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/user', userRoutes);  // this route handles user-related actions and needs to be used in frontend
+app.use('/game', gameRoutes); 
 
 // Health check
 app.get('/health', (req, res) => {
