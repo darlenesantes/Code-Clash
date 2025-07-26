@@ -1,6 +1,4 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 
 const router = express.Router();
@@ -10,122 +8,43 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Simple in-memory storage (replace with database later)
 const users = [];
+const activeSessions = new Map(); // userId -> sessionData
 let userIdCounter = 1;
 
 // Helper functions
-const generateToken = (user) => {
-  return jwt.sign(
-    { id: user.id, email: user.email, username: user.username },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '14d' }
-  );
-};
-
 const findUserByEmail = (email) => {
   return users.find(u => u.email === email.toLowerCase());
 };
 
-const findUserByUsername = (username) => {
-  return users.find(u => u.username === username);
+const findUserByGoogleId = (googleId) => {
+  return users.find(u => u.googleId === googleId);
 };
 
-// Register
-router.post('/register', async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
+const createSession = (user) => {
+  const sessionId = Math.random().toString(36).substring(2, 15);
+  activeSessions.set(sessionId, {
+    userId: user.id,
+    user: user,
+    createdAt: new Date(),
+    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
+  });
+  return sessionId;
+};
 
-    // Basic validation
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters' });
-    }
-
-    // Check existing users
-    if (findUserByEmail(email)) {
-      return res.status(400).json({ message: 'Email already registered' });
-    }
-
-    if (findUserByUsername(username)) {
-      return res.status(400).json({ message: 'Username already taken' });
-    }
-
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    // Create user
-    const newUser = {
-      id: userIdCounter++,
-      username,
-      email: email.toLowerCase(),
-      passwordHash,
-      avatar: username.substring(0, 2).toUpperCase(),
-      setupComplete: false,
-      rank: 'Bronze I',
-      coins: 100,
-      createdAt: new Date()
-    };
-
-    users.push(newUser);
-
-    // Generate token
-    const token = generateToken(newUser);
-
-    // Return success
-    const { passwordHash: _, ...userWithoutPassword } = newUser;
-    res.status(201).json({
-      message: 'Registration successful',
-      user: userWithoutPassword,
-      accessToken: token
-    });
-
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Registration failed' });
+const getSession = (sessionId) => {
+  const session = activeSessions.get(sessionId);
+  if (!session) return null;
+  
+  // Check if expired
+  if (new Date() > session.expiresAt) {
+    activeSessions.delete(sessionId);
+    return null;
   }
-});
+  
+  return session;
+};
 
-// Login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
-
-    // Find user
-    const user = findUserByEmail(email);
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Check password
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Generate token
-    const token = generateToken(user);
-
-    // Return success
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    res.json({
-      message: 'Login successful',
-      user: userWithoutPassword,
-      accessToken: token
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Login failed' });
-  }
-});
-
-// Google OAuth
+// Google OAuth ONLY
 router.post('/google', async (req, res) => {
   try {
     const { token } = req.body;
@@ -141,10 +60,10 @@ router.post('/google', async (req, res) => {
     });
 
     const payload = ticket.getPayload();
-    const { email, name } = payload;
+    const { sub: googleId, email, name, picture } = payload;
 
     // Check if user exists
-    let user = findUserByEmail(email);
+    let user = findUserByEmail(email) || findUserByGoogleId(googleId);
 
     if (!user) {
       // Create new user
@@ -152,25 +71,30 @@ router.post('/google', async (req, res) => {
         id: userIdCounter++,
         username: name.replace(/\s+/g, '_').toLowerCase(),
         email: email.toLowerCase(),
-        passwordHash: null, // No password for Google users
+        googleId,
+        displayName: name,
+        profilePicture: picture,
         avatar: name.substring(0, 2).toUpperCase(),
         setupComplete: false,
         rank: 'Bronze I',
         coins: 100,
+        totalMatches: 0,
+        wins: 0,
+        losses: 0,
+        winStreak: 0,
         createdAt: new Date()
       };
       users.push(user);
     }
 
-    // Generate token
-    const accessToken = generateToken(user);
+    // Create session
+    const sessionId = createSession(user);
 
     // Return success
-    const { passwordHash: _, ...userWithoutPassword } = user;
     res.json({
       message: 'Google authentication successful',
-      user: userWithoutPassword,
-      accessToken
+      user: user,
+      sessionId: sessionId
     });
 
   } catch (error) {
@@ -182,16 +106,18 @@ router.post('/google', async (req, res) => {
 // Update profile
 router.put('/profile', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ message: 'No token provided' });
+    const sessionId = req.headers['x-session-id'];
+    if (!sessionId) {
+      return res.status(401).json({ message: 'No session provided' });
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const session = getSession(sessionId);
+    if (!session) {
+      return res.status(401).json({ message: 'Invalid or expired session' });
+    }
 
     // Find user
-    const user = users.find(u => u.id === decoded.id);
+    const user = users.find(u => u.id === session.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -201,11 +127,12 @@ router.put('/profile', async (req, res) => {
     Object.assign(user, updates);
     user.setupComplete = true;
 
-    // Return updated user
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    // Update session
+    session.user = user;
+
     res.json({
       message: 'Profile updated successfully',
-      user: userWithoutPassword
+      user: user
     });
 
   } catch (error) {
@@ -217,23 +144,17 @@ router.put('/profile', async (req, res) => {
 // Get current user
 router.get('/me', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ message: 'No token provided' });
+    const sessionId = req.headers['x-session-id'];
+    if (!sessionId) {
+      return res.status(401).json({ message: 'No session provided' });
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-
-    // Find user
-    const user = users.find(u => u.id === decoded.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    const session = getSession(sessionId);
+    if (!session) {
+      return res.status(401).json({ message: 'Invalid or expired session' });
     }
 
-    // Return user
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    res.json({ user: userWithoutPassword });
+    res.json({ user: session.user });
 
   } catch (error) {
     console.error('Get user error:', error);
@@ -243,7 +164,18 @@ router.get('/me', async (req, res) => {
 
 // Logout
 router.post('/logout', (req, res) => {
-  res.json({ message: 'Logout successful' });
+  try {
+    const sessionId = req.headers['x-session-id'];
+    if (sessionId) {
+      activeSessions.delete(sessionId);
+    }
+    res.json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ message: 'Logout failed' });
+  }
 });
+
+// Only Google OAuth
 
 module.exports = router;
