@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, User, Code, Target, Check } from 'lucide-react';
 import authService from '../services/api/authService';
+import Avatar from '../components/ui/Avatar';
 
 const ProfileSetup = ({ navigate, user, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -8,20 +9,37 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
   const [error, setError] = useState('');
   
   const [profileData, setProfileData] = useState({
-    avatar: user?.username?.substring(0, 2).toUpperCase() || 'CW',
+    avatarTheme: 'coder',
+    avatarColor: 'blue',
     favoriteLanguages: [],
     skillLevel: '',
     goals: []
   });
 
   const steps = [
-    { id: 1, title: 'Pick Your Avatar', icon: User },
+    { id: 1, title: 'Choose Your Avatar', icon: User },
     { id: 2, title: 'Coding Background', icon: Code },
-    { id: 3, title: 'What Are Your Goals?', icon: Target }
+    { id: 3, title: 'Your Goals', icon: Target }
   ];
 
-  const avatarOptions = [
-    'AB', 'CD', 'EF', 'GH', 'IJ', 'KL', 'MN', 'OP', 'QR', 'ST', 'UV', 'WX', 'YZ'
+  const avatarThemes = [
+    { id: 'gamer', name: 'Gamer', icon: '🎮', description: 'Battle-ready competitor' },
+    { id: 'coder', name: 'Coder', icon: '💻', description: 'Algorithm enthusiast' },
+    { id: 'genius', name: 'Genius', icon: '🧠', description: 'Strategic thinker' },
+    { id: 'champion', name: 'Champion', icon: '🏆', description: 'Victory seeker' },
+    { id: 'cyborg', name: 'Cyborg', icon: '🦾', description: 'Tech-enhanced warrior' },
+    { id: 'ninja', name: 'Ninja', icon: '🥷', description: 'Stealthy problem solver' }
+  ];
+
+  const avatarColors = [
+    { id: 'red', name: 'Red', class: 'bg-red-500' },
+    { id: 'blue', name: 'Blue', class: 'bg-blue-500' },
+    { id: 'green', name: 'Green', class: 'bg-green-500' },
+    { id: 'purple', name: 'Purple', class: 'bg-purple-500' },
+    { id: 'orange', name: 'Orange', class: 'bg-orange-500' },
+    { id: 'pink', name: 'Pink', class: 'bg-pink-500' },
+    { id: 'yellow', name: 'Yellow', class: 'bg-yellow-500' },
+    { id: 'cyan', name: 'Cyan', class: 'bg-cyan-500' }
   ];
 
   const languages = [
@@ -32,7 +50,7 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
     { id: 'beginner', title: 'Beginner', description: 'Just starting my coding journey' },
     { id: 'intermediate', title: 'Intermediate', description: 'Comfortable with basic algorithms' },
     { id: 'advanced', title: 'Advanced', description: 'Ready for complex challenges' },
-    { id: 'expert', title: 'Expert', description: 'Bring on the hardest problems!' }
+    { id: 'expert', title: 'Expert', description: 'Bring on the hardest problems' }
   ];
 
   const goalOptions = [
@@ -64,28 +82,14 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
     });
   };
 
-  const handleNext = () => {
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
   const handleComplete = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      console.log('Completing profile setup with data:', profileData);
-      
-      // Update user profile with setup data
       const result = await authService.updateProfile({
-        avatar: profileData.avatar,
+        avatarTheme: profileData.avatarTheme,
+        avatarColor: profileData.avatarColor,
         favoriteLanguages: profileData.favoriteLanguages,
         skillLevel: profileData.skillLevel,
         goals: profileData.goals,
@@ -93,8 +97,6 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
       });
 
       if (result.success) {
-        console.log('Profile setup completed successfully');
-        // Call onComplete with updated user data
         onComplete(result.user);
       } else {
         setError(result.error || 'Failed to save profile. Please try again.');
@@ -109,7 +111,7 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
 
   const canProceed = () => {
     switch (currentStep) {
-      case 1: return profileData.avatar;
+      case 1: return profileData.avatarTheme && profileData.avatarColor;
       case 2: return profileData.favoriteLanguages.length > 0 && profileData.skillLevel;
       case 3: return profileData.goals.length > 0;
       default: return false;
@@ -120,35 +122,64 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">Pick Your Avatar</h2>
-              <p className="text-gray-400">Choose your battle insignia</p>
+              <h2 className="text-2xl font-bold text-white mb-2">Choose Your Avatar</h2>
+              <p className="text-gray-400">Pick a theme and color that represents you</p>
             </div>
             
-            <div className="grid grid-cols-4 md:grid-cols-6 gap-4">
-              {avatarOptions.map((avatar) => (
-                <button
-                  key={avatar}
-                  onClick={() => setProfileData(prev => ({ ...prev, avatar }))}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${
-                    profileData.avatar === avatar
-                      ? 'bg-blue-600 text-white ring-4 ring-blue-400'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  {avatar}
-                </button>
-              ))}
-            </div>
-            
-            <div className="text-center">
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center font-bold text-2xl mx-auto ${
-                profileData.avatar ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'
-              }`}>
-                {profileData.avatar || '?'}
+            {/* Theme Selection */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4">Choose Your Theme</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {avatarThemes.map((theme) => (
+                  <button
+                    key={theme.id}
+                    onClick={() => setProfileData(prev => ({ ...prev, avatarTheme: theme.id }))}
+                    className={`p-4 rounded-xl text-center transition-all duration-300 ${
+                      profileData.avatarTheme === theme.id
+                        ? 'bg-blue-600 text-white ring-4 ring-blue-400'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">{theme.icon}</div>
+                    <div className="font-semibold">{theme.name}</div>
+                    <div className="text-xs opacity-80">{theme.description}</div>
+                  </button>
+                ))}
               </div>
-              <p className="text-gray-400 mt-2">Your avatar preview</p>
+            </div>
+
+            {/* Color Selection */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4">Choose Your Color</h3>
+              <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+                {avatarColors.map((color) => (
+                  <button
+                    key={color.id}
+                    onClick={() => setProfileData(prev => ({ ...prev, avatarColor: color.id }))}
+                    className={`w-12 h-12 rounded-full transition-all duration-300 ${color.class} ${
+                      profileData.avatarColor === color.id
+                        ? 'ring-4 ring-white scale-110'
+                        : 'hover:scale-105'
+                    }`}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            {/* Avatar Preview */}
+            <div className="text-center">
+              <div className="mb-4">
+                <Avatar 
+                  theme={profileData.avatarTheme} 
+                  color={profileData.avatarColor} 
+                  size="xl"
+                  className="mx-auto"
+                />
+              </div>
+              <p className="text-gray-400">Your avatar preview</p>
             </div>
           </div>
         );
@@ -209,8 +240,8 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">What Are Your Goals?</h2>
-              <p className="text-gray-400">Select what you want to achieve (choose any)</p>
+              <h2 className="text-2xl font-bold text-white mb-2">Your Goals</h2>
+              <p className="text-gray-400">What do you want to achieve with CodeClash?</p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -250,7 +281,7 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
       {/* Header */}
       <header className="relative z-50 px-6 py-6">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">Welcome to CodeClash!</h1>
+          <h1 className="text-2xl font-bold text-white">Welcome to CodeClash</h1>
           <button
             onClick={() => navigate('landing')}
             className="text-gray-400 hover:text-white transition-colors"
@@ -293,7 +324,6 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8">
             {renderStep()}
 
-            {/* Error Message */}
             {error && (
               <div className="mt-6 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                 <p className="text-red-400 text-center">{error}</p>
@@ -303,7 +333,7 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
             {/* Navigation */}
             <div className="flex justify-between mt-8">
               <button
-                onClick={handleBack}
+                onClick={() => setCurrentStep(currentStep - 1)}
                 disabled={currentStep === 1}
                 className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -313,7 +343,7 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
 
               {currentStep < 3 ? (
                 <button
-                  onClick={handleNext}
+                  onClick={() => setCurrentStep(currentStep + 1)}
                   disabled={!canProceed()}
                   className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
