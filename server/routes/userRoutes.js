@@ -13,21 +13,57 @@ const express = require("express");
 const app = express();
 const router = express.Router();
 app.use(express.json());
+const { User } = require('../models');
 
 const { findOrCreateUser, updateUserPreferences, updateMatchStats, getUserStats } = require('../controllers/userController');
 
 // Route to handle Google OAuth login
 router.post('/auth/google', async (req, res) => {
   const { googleId } = req.body;
-  console.log("Received Google ID:", googleId); // 👈 add this
+  console.log("Received Google ID:", googleId);
 
   try {
     const user = await findOrCreateUser(googleId);
     res.json(user);
   } catch (err) {
-    console.error("🔥 Error in /auth/google:", err); // 👈 add this
+    console.error("🔥 Error in /auth/google:", err);
     res.status(500).json({ error: 'Failed to find or create user' });
   }
+});
+
+// route to set profile up
+router.put('/profile', async (req, res) => {
+    try {
+        const {
+            googleId,
+            avatarTheme,
+            avatarColor,
+            favoriteLanguages,
+            skillLevel,
+            goals,
+            setupComplete
+        } = req.body;
+        console.log('Updating user profile with data:', req.body); // debugging log
+
+        const user = await User.findOne({ where: { googleId } });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        await user.update({
+            avatarTheme,
+            avatarColor,
+            favoriteLanguages,
+            skillLevel,
+            goals,
+            setupComplete
+        });
+
+        console.log('User profile updated successfully');
+        res.json({ user });
+    } catch (error) {
+        console.error('Error updating user profile:', error);
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
 });
 
 

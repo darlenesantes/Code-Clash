@@ -53,6 +53,15 @@ module.exports = (sequelize) => {
             allowNull: true // This will be filled in during profile setup
             // Possible values = improve problem solving, learn new algorithms, practice coding interviews, etc.
         },
+        // User Avatar
+        avatarTheme: {
+            type: DataTypes.STRING,
+            allowNull: true // This will be filled in during profile setup
+        },
+        avatarColor: {
+            type: DataTypes.STRING,
+            allowNull: true // This will be filled in during profile setup
+        },
         setupComplete: {
             type: DataTypes.BOOLEAN, // Indicates whether the user has completed their profile setup
             defaultValue: false // Default to false when the user first signs up
