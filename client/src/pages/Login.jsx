@@ -5,8 +5,26 @@ import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 const Login = ({ navigate, onLogin }) => {
   const [error, setError] = useState('');
 
-  const handleGoogleSuccess = (user) => {
+  const handleGoogleSuccess = async (user) => {
     console.log('Google login successful in Login.jsx:', user);
+
+    // here we are going to send the unique googleId to the backend to find or create a user
+    try {
+      await fetch('/api/user/auth/google', {
+        method: 'Post',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ googleId: user.sub })
+      });
+
+      const dbUser = await response.json();
+
+      onLogin(dbUser); // Call the parent's onLogin function
+      console.log('User logged in successfully');
+    } catch (error) {
+      console.error('Error logging in with Google:', error);
+    }
     
     // Call the parent's onLogin function which handles navigation
     onLogin(user);

@@ -16,15 +16,18 @@ const { findOrCreateUser, updateUserPreferences, updateMatchStats, getUserStats 
 
 // Route to handle Google OAuth login
 router.post('/auth/google', async (req, res) => {
-    const { googleId } = req.body;
+  const { googleId } = req.body;
+  console.log("Received Google ID:", googleId); // 👈 add this
 
-    try {
-        const user = await findOrCreateUser(googleId);
-        res.status(200).json({ id: user.id });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const user = await findOrCreateUser(googleId);
+    res.json(user);
+  } catch (err) {
+    console.error("🔥 Error in /auth/google:", err); // 👈 add this
+    res.status(500).json({ error: 'Failed to find or create user' });
+  }
 });
+
 
 // Route to update user preferences
 router.put('/update-preferences/:id', async (req, res) => {
@@ -64,3 +67,5 @@ router.put('/update-stats', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+module.exports = router;
