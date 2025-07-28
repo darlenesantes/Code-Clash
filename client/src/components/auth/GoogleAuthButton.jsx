@@ -93,10 +93,9 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false, children }) =>
     console.log('Google button clicked'); // DEBUG
     console.log('Google loaded:', googleLoaded, 'Window.google:', !!window.google); // DEBUG
     
-    if (!googleLoaded || !window.google || isLoading || disabled) {
-      console.log('Button click ignored - not ready'); // DEBUG
-      return;
-    }
+      if (!googleLoaded || isLoading || disabled) {
+        return;
+      }
 
     try {
       console.log('Showing Google prompt...'); // DEBUG
@@ -129,6 +128,7 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false, children }) =>
             width: '100%',
             text: 'continue_with',
             shape: 'rectangular',
+            click_listener: true,
           }
         );
       }

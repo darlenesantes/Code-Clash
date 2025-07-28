@@ -1,6 +1,6 @@
 // This is where we set up our database connection
 // Getting the environment variables from .env file
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 
 const { Sequelize } = require('sequelize');
 
@@ -8,6 +8,8 @@ const { Sequelize } = require('sequelize');
 const dbURL = process.env.RAILWAY_ENVIRONMENT_NAME
     ? process.env.DATABASE_URL // if deployed on Railway, use the DATABASE_URL
     : process.env.DATABASE_PUBLIC_URL; // otherwise, use the public database URL
+
+    console.log("🔌 Connecting to DB:", dbURL);
 
 // Create a new Sequelize instance with the database URL from environment variables
 // This is for connecting to a PostgreSQL database, with SSL options for secure connections
