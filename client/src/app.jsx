@@ -8,6 +8,7 @@ import authService from './services/api/authService'; // FIXED: Capital S
 import './styles/global.css';
 import GameRoom from './pages/GameRoom';
 import MatchLobby from './pages/MatchLobby';
+import TestRoomPage from "./pages/TestRoomPage";
 
 // Create context FIRST
 export const AppContext = React.createContext();
@@ -176,6 +177,14 @@ const App = () => {
             navigate={navigate} 
             user={user}
             mode="quick"
+          />
+        );
+      
+      case 'test-room':
+        return (
+          <TestRoomPage
+            navigate={navigate}
+            user={user}
           />
         );
       

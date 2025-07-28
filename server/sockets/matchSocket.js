@@ -1,12 +1,17 @@
 // Store matches in memory (matchCode -> [sockets])
 const { runJudge0 } = require("../utils/judge0Helper");
-const matchRooms = {};
-const matchData = {};
 const {
   buildJsWrappedCode,
   formatTestCasesAsStdin
 } = require("../utils/wrappers");
 const problems = require("../data/problems.json");
+const matchRooms = {};
+const matchData = {};
+
+//Utility: generate random room codes
+function generateRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
 
 async function runAllTestCases(code, languageId, testCases) {
   const results = [];
@@ -38,6 +43,74 @@ function matchSocketHandler(socket, io) {
 
     //sends welcome message to new users
     socket.emit("server_message", "Welcome to Code Clash!");
+
+    //Create Room (Private)
+    socket.on("create_room", ({ difficulty, creator }) => {
+    console.log("🔥 Received create_room from:", creator?.username);
+
+    let roomCode;
+
+    do {
+      roomCode = generateRoomCode();
+    } while (matchRooms[roomCode]);
+
+    matchRooms[roomCode] = [socket];
+    matchData[roomCode] = {
+      difficulty,
+      players: [creator],
+      createdAt: Date.now()
+    };
+
+    socket.join(roomCode);
+    socket.data.username = creator.username;
+    socket.data.userId = creator.id;
+
+    console.log(`${creator.username} created room ${roomCode}`);
+    socket.emit("room_created", { roomCode });
+  });
+
+  // ✅ Join Room
+  socket.on("join_room", ({ roomCode, player }) => {
+    const room = matchRooms[roomCode];
+
+    if (!room || room.length >= 2) {
+      socket.emit("room_error", { message: "Room not found or full" });
+      return;
+    }
+
+    matchRooms[roomCode].push(socket);
+    matchData[roomCode].players.push(player);
+    socket.join(roomCode);
+    socket.data.username = player.username;
+    socket.data.userId = player.id;
+
+    console.log(`${player.username} joined room ${roomCode}`);
+
+    io.to(roomCode).emit("room_joined", {
+      roomCode,
+      playerCount: matchRooms[roomCode].length
+    });
+
+    // Start game when 2 players are in
+    if (matchRooms[roomCode].length === 2) {
+      const difficulty = matchData[roomCode].difficulty || 'easy';
+      const problem = problems.find(p => p.difficulty === difficulty) || problems[0];
+
+      matchData[roomCode].problem = problem;
+
+      console.log("🔥 [matchSocket] BOTH PLAYERS JOINED — starting game in room", roomCode);
+      console.log("📦 [matchSocket] Problem being sent:", problem.id, problem.title);
+
+      io.to(roomCode).emit("start_game", {
+        problem
+      });
+    }
+  });
+
+  // 🧪 Test messaging
+  socket.on("client_message", (msg) => {
+    console.log(`Message from client ${socket.id}:`, msg);
+  });
 
     //User wants to join a match
     socket.on ("join_match",({ matchCode, username}) => {
