@@ -10,12 +10,13 @@ const Login = ({ navigate, onLogin }) => {
 
     // here we are going to send the unique googleId to the backend to find or create a user
     try {
-      await fetch('/api/user/auth/google', {
+      console.log("THE USER ID IS THIS:", user.googleId);
+      const response = await fetch('/api/user/auth/google', {
         method: 'Post',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ googleId: user.sub })
+        body: JSON.stringify({ googleId: user.googleId })
       });
 
       const dbUser = await response.json();
