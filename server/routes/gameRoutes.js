@@ -57,3 +57,6 @@ router.get('/question', (req, res) => {
         testCases: randomProblem.testCases
     });
 });
+
+// Export the router
+module.exports = router;

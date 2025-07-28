@@ -9,11 +9,10 @@
 
 const sequelize = require('./database');
 const defineUser = require('./user');
-const defineProblem = require('./problem'); // Import the problem model
+const Problem = require('./problem'); // Import the problem model
 
 // Initialize the User model and Problem model with the sequelize instance
 const User = defineUser(sequelize);
-const Problem = defineProblem(sequelize); 
 
 // Export the models
 module.exports = {
