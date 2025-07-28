@@ -44,6 +44,7 @@ class ErrorBoundary extends React.Component {
 }
 
 // Create root and render app
+console.log("🔍 React.version =", React.version);
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 root.render(

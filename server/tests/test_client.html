@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Socket.IO Test</title>
+  <!-- Load the Socket.IO client first -->
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
 <body>
@@ -15,6 +16,53 @@
     });
 
     socket.emit("client_message", "Hello from the HTML file!");
+
+    // ✅ Generate random username per tab
+    const username = "Player_" + Math.floor(Math.random() * 1000);
+
+    // Simulate joining a match
+    socket.emit("join_match", {
+      matchCode: "abc123", // same match for both players
+      username
+    });
+
+    // Listen for game start
+    socket.on("start_game", ({ problem }) => {
+      console.log("🧠 Problem received:", problem);
+    });
+
+    // Listen for match over
+    socket.on("match_over", ({ winner, output }) => {
+      console.log(`🏆 ${winner} won! Output:`, output);
+    });
+
+    // Listen for submission results
+    socket.on("submission_result", (data) => {
+      console.log("📩 Submission result:", data);
+    });
+
+    // Listen for lock_editor (when opponent wins)
+    socket.on("lock_editor", () => {
+      console.log("🔒 Your editor has been locked.");
+    });
+    // Simulate code submission after a few seconds
+setTimeout(() => {
+  const sampleCode = `
+def square(n):
+    return n * n
+
+n = int(input())
+print(square(n))
+  `;
+
+  socket.emit("submit_code", {
+    matchCode: "abc123",
+    code: sampleCode,
+    languageId: 71 
+  });
+
+  console.log("📤 Code submitted to server!");
+}, 3000); // wait 3 seconds after loading
   </script>
 </body>
 </html>
