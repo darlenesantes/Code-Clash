@@ -11,6 +11,23 @@
       "java": "public int[] twoSum(int[] nums, int target) {\n    // your code here\n    return new int[2];\n}",
       "cpp": "vector<int> twoSum(vector<int>& nums, int target) {\n    // your code here\n    return {};\n}"
     },
+       "examples": [
+      {
+        "input": "[2,7,11,15], 9",
+        "output": "[0,1]",
+        "explanation": "The numbers at indices 0 and 1 add up to 9."
+      },
+      {
+        "input": "[3,2,4], 6",
+        "output": "[1,2]",
+        "explanation": "Elements at index 1 and 2 sum to 6."
+      }
+    ],
+    "constraints": [
+      "2 <= nums.length <= 10^4",
+      "-10^9 <= nums[i] <= 10^9",
+      "Exactly one valid answer exists"
+    ],
     "testCases": [
       { "input": "[2,7,11,15]\n9", "expectedOutputs": ["[0,1]"] },
       { "input": "[3,2,4]\n6", "expectedOutputs": ["[1,2]"] },
@@ -36,6 +53,23 @@
         "java": "public ListNode addTwoNumbers(ListNode l1, ListNode l2) {\n    // your code here\n    return null;\n}",
         "cpp": "ListNode* addTwoNumbers(ListNode* l1, ListNode* l2) {\n    // your code here\n    return nullptr;\n}"
     },
+      "examples": [
+      {
+        "input": "[2,4,3], [5,6,4]",
+        "output": "[7,0,8]",
+        "explanation": "342 + 465 = 807, stored in reverse."
+      },
+      {
+        "input": "[0], [0]",
+        "output": "[0]",
+        "explanation": "0 + 0 = 0."
+      }
+    ],
+    "constraints": [
+      "Each list is non-empty",
+      "0 <= Node.val <= 9",
+      "Digits stored in reverse order"
+    ],
     "testCases": [
         { "input": "[2,4,3]\n[5,6,4]", "expectedOutputs": ["[7,0,8]"] },
         { "input": "[0]\n[0]", "expectedOutputs": ["[0]"] },
@@ -61,6 +95,22 @@
     "java": "public List<Integer> inorderTraversal(TreeNode root) {\n    // your code here\n    return new ArrayList<>();\n}",
     "cpp": "vector<int> inorderTraversal(TreeNode* root) {\n    // your code here\n    return {};\n}"
   },
+  "examples": [
+      {
+        "input": "[1,null,2,3]",
+        "output": "[1,3,2]",
+        "explanation": "Inorder of [1,null,2,3] is [1,3,2]."
+      },
+      {
+        "input": "[]",
+        "output": "[]",
+        "explanation": "Empty tree returns empty traversal."
+      }
+    ],
+    "constraints": [
+      "Number of nodes ≤ 100",
+      "-100 <= Node.val <= 100"
+    ],
   "testCases": [
     { "input": "[1,null,2,3]", "expectedOutputs": ["[1,3,2]"] },
     { "input": "[]", "expectedOutputs": ["[]"] },
@@ -86,6 +136,24 @@
     "java": "public int countComponents(int n, int[][] edges) {\n    // your code here\n    return 0;\n}",
     "cpp": "int countComponents(int n, vector<vector<int>>& edges) {\n    // your code here\n    return 0;\n}"
   },
+   "examples": [
+      {
+        "input": "n = 5, edges = [[0,1],[1,2],[3,4]]",
+        "output": "2",
+        "explanation": "There are 2 disconnected components."
+      },
+      {
+        "input": "n = 5, edges = [[0,1],[1,2],[2,3],[3,4]]",
+        "output": "1",
+        "explanation": "All nodes are connected."
+      }
+    ],
+    "constraints": [
+      "1 <= n <= 2000",
+      "1 <= edges.length <= 5000",
+      "0 <= edges[i][0], edges[i][1] < n",
+      "No duplicate edges"
+    ],
   "testCases": [
     { "input": "5\n[[0,1],[1,2],[3,4]]", "expectedOutputs": ["2"] },
     { "input": "5\n[[0,1],[1,2],[2,3],[3,4]]", "expectedOutputs": ["1"] },
@@ -111,6 +179,22 @@
       "java": "public int maxProfit(int[] prices) {\n    // your code here\n    return 0;\n}",
       "cpp": "int maxProfit(vector<int>& prices) {\n    // your code here\n    return 0;\n}"
     },
+    "examples": [
+      {
+        "input": "[7,1,5,3,6,4]",
+        "output": "5",
+        "explanation": "Buy at 1, sell at 6 for max profit 5."
+      },
+      {
+        "input": "[7,6,4,3,1]",
+        "output": "0",
+        "explanation": "No profit possible."
+      }
+    ],
+    "constraints": [
+      "1 <= prices.length <= 10^5",
+      "0 <= prices[i] <= 10^4"
+    ],
     "testCases": [
       { "input": "[7,1,5,3,6,4]", "expectedOutputs": ["5"] },
       { "input": "[7,6,4,3,1]", "expectedOutputs": ["0"] },
@@ -136,6 +220,22 @@
       "java": "public ListNode reverseList(ListNode head) {\n    // your code here\n    return null;\n}",
       "cpp": "ListNode* reverseList(ListNode* head) {\n    // your code here\n    return nullptr;\n}"
     },
+     "examples": [
+      {
+        "input": "[1,2,3,4,5]",
+        "output": "[5,4,3,2,1]",
+        "explanation": "The list is reversed."
+      },
+      {
+        "input": "[1,2]",
+        "output": "[2,1]",
+        "explanation": "Only two elements; order is flipped."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the list is in the range [0, 5000]",
+      "-5000 <= Node.val <= 5000"
+    ],
     "testCases": [
       { "input": "[1,2,3,4,5]", "expectedOutputs": ["[5,4,3,2,1]"] },
       { "input": "[1,2]", "expectedOutputs": ["[2,1]"] },
@@ -161,6 +261,22 @@
       "java": "public boolean isSymmetric(TreeNode root) {\n    // your code here\n    return false;\n}",
       "cpp": "bool isSymmetric(TreeNode* root) {\n    // your code here\n    return false;\n}"
     },
+       "examples": [
+      {
+        "input": "[1,2,2,3,4,4,3]",
+        "output": "true",
+        "explanation": "Mirror image on both sides."
+      },
+      {
+        "input": "[1,2,2,null,3,null,3]",
+        "output": "false",
+        "explanation": "Not symmetric."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the tree is in the range [1, 1000]",
+      "-100 <= Node.val <= 100"
+    ],
     "testCases": [
       { "input": "[1,2,2,3,4,4,3]", "expectedOutputs": ["true"] },
       { "input": "[1,2,2,null,3,null,3]", "expectedOutputs": ["false"] },
@@ -186,6 +302,22 @@
     "java": "public boolean containsDuplicate(int[] nums) {\n    // your code here\n    return false;\n}",
     "cpp": "bool containsDuplicate(vector<int>& nums) {\n    // your code here\n    return false;\n}"
   },
+    "examples": [
+      {
+        "input": "[1,2,3,1]",
+        "output": "true",
+        "explanation": "1 is repeated."
+      },
+      {
+        "input": "[1,2,3,4]",
+        "output": "false",
+        "explanation": "All elements are unique."
+      }
+    ],
+    "constraints": [
+      "1 <= nums.length <= 10^5",
+      "-10^9 <= nums[i] <= 10^9"
+    ],
   "testCases": [
     { "input": "[1,2,3,1]", "expectedOutputs": ["true"] },
     { "input": "[1,2,3,4]", "expectedOutputs": ["false"] },
@@ -211,6 +343,23 @@
     "java": "public ListNode mergeTwoLists(ListNode list1, ListNode list2) {\n    // your code here\n    return null;\n}",
     "cpp": "ListNode* mergeTwoLists(ListNode* list1, ListNode* list2) {\n    // your code here\n    return nullptr;\n}"
   },
+      "examples": [
+      {
+        "input": "[1,2,4], [1,3,4]",
+        "output": "[1,1,2,3,4,4]",
+        "explanation": "Merging two sorted linked lists."
+      },
+      {
+        "input": "[], [0]",
+        "output": "[0]",
+        "explanation": "One list is empty."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in both lists is in the range [0, 50]",
+      "-100 <= Node.val <= 100",
+      "Both lists are sorted"
+    ],
   "testCases": [
     { "input": "[1,2,4]\n[1,3,4]", "expectedOutputs": ["[1,1,2,3,4,4]"] },
     { "input": "[]\n[]", "expectedOutputs": ["[]"] },
@@ -236,6 +385,22 @@
     "java": "public boolean isValidBST(TreeNode root) {\n    // your code here\n    return false;\n}",
     "cpp": "bool isValidBST(TreeNode* root) {\n    // your code here\n    return false;\n}"
   },
+     "examples": [
+      {
+        "input": "[2,1,3]",
+        "output": "true",
+        "explanation": "Valid in-order sequence."
+      },
+      {
+        "input": "[5,1,4,null,null,3,6]",
+        "output": "false",
+        "explanation": "Node 3 is in wrong position."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the tree is in the range [0, 10^4]",
+      "-2^31 <= Node.val <= 2^31 - 1"
+    ],
   "testCases": [
     { "input": "[2,1,3]", "expectedOutputs": ["true"] },
     { "input": "[5,1,4,null,null,3,6]", "expectedOutputs": ["false"] },
@@ -261,6 +426,24 @@
     "java": "public Node cloneGraph(Node node) {\n    // your code here\n    return null;\n}",
     "cpp": "Node* cloneGraph(Node* node) {\n    // your code here\n    return nullptr;\n}"
   },
+     "examples": [
+      {
+        "input": "[[2,4],[1,3],[2,4],[1,3]]",
+        "output": "[[2,4],[1,3],[2,4],[1,3]]",
+        "explanation": "The cloned graph structure matches the original."
+      },
+      {
+        "input": "[]",
+        "output": "[]",
+        "explanation": "Empty graph returns empty."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the graph is in the range [0, 100]",
+      "1 <= Node.val <= 100",
+      "Node.val is unique",
+      "There are no repeated edges and no self-loops"
+    ],
   "testCases": [
     { "input": "[[2,4],[1,3],[2,4],[1,3]]", "expectedOutputs": ["[[2,4],[1,3],[2,4],[1,3]]"] },
     { "input": "[]", "expectedOutputs": ["[]"] },
@@ -286,6 +469,22 @@
     "java": "public boolean hasCycle(ListNode head) {\n    // your code here\n    return false;\n}",
     "cpp": "bool hasCycle(ListNode* head) {\n    // your code here\n    return false;\n}"
   },
+   "examples": [
+      {
+        "input": "[3,2,0,-4]",
+        "output": "true",
+        "explanation": "There is a cycle linking back to index 1."
+      },
+      {
+        "input": "[1]",
+        "output": "false",
+        "explanation": "Single node with no cycle."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the list is in the range [0, 10^4]",
+      "-10^5 <= Node.val <= 10^5"
+    ],
   "testCases": [
     { "input": "[3,2,0,-4]", "expectedOutputs": ["true"] },
     { "input": "[1,2]", "expectedOutputs": ["true"] },
@@ -311,6 +510,23 @@
     "java": "public int findCircleNum(int[][] isConnected) {\n    // your code here\n    return 0;\n}",
     "cpp": "int findCircleNum(vector<vector<int>>& isConnected) {\n    // your code here\n    return 0;\n}"
   },
+    "examples": [
+      {
+        "input": "[[1,1,0],[1,1,0],[0,0,1]]",
+        "output": "2",
+        "explanation": "There are 2 separate provinces."
+      },
+      {
+        "input": "[[1,0,0],[0,1,0],[0,0,1]]",
+        "output": "3",
+        "explanation": "All nodes are isolated."
+      }
+    ],
+    "constraints": [
+      "1 <= isConnected.length <= 200",
+      "isConnected[i][j] is 1 or 0",
+      "isConnected[i][i] == 1"
+    ],
   "testCases": [
     { "input": "[[1,1,0],[1,1,0],[0,0,1]]", "expectedOutputs": ["2"] },
     { "input": "[[1,0,0],[0,1,0],[0,0,1]]", "expectedOutputs": ["3"] },
@@ -336,6 +552,22 @@
     "java": "public int lengthOfLIS(int[] nums) {\n    // your code here\n    return 0;\n}",
     "cpp": "int lengthOfLIS(vector<int>& nums) {\n    // your code here\n    return 0;\n}"
   },
+    "examples": [
+      {
+        "input": "[10,9,2,5,3,7,101,18]",
+        "output": "4",
+        "explanation": "The LIS is [2,3,7,101]"
+      },
+      {
+        "input": "[0,1,0,3,2,3]",
+        "output": "4",
+        "explanation": "The LIS is [0,1,2,3]"
+      }
+    ],
+    "constraints": [
+      "1 <= nums.length <= 2500",
+      "-10^4 <= nums[i] <= 10^4"
+    ],
   "testCases": [
     { "input": "[10,9,2,5,3,7,101,18]", "expectedOutputs": ["4"] },
     { "input": "[0,1,0,3,2,3]", "expectedOutputs": ["4"] },
@@ -361,6 +593,23 @@
     "java": "public ListNode removeNthFromEnd(ListNode head, int n) {\n    // your code here\n    return null;\n}",
     "cpp": "ListNode* removeNthFromEnd(ListNode* head, int n) {\n    // your code here\n    return nullptr;\n}"
   },
+   "examples": [
+      {
+        "input": "[1,2,3,4,5], 2",
+        "output": "[1,2,3,5]",
+        "explanation": "Node 4 is removed."
+      },
+      {
+        "input": "[1], 1",
+        "output": "[]",
+        "explanation": "Only node is removed."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the list is in the range [1, 10^4]",
+      "0 <= Node.val <= 100",
+      "1 <= n <= length of the list"
+    ],
   "testCases": [
     { "input": "[1,2,3,4,5]\n2", "expectedOutputs": ["[1,2,3,5]"] },
     { "input": "[1]\n1", "expectedOutputs": ["[]"] },
@@ -386,6 +635,22 @@
     "java": "public int maxDepth(TreeNode root) {\n    // your code here\n    return 0;\n}",
     "cpp": "int maxDepth(TreeNode* root) {\n    // your code here\n    return 0;\n}"
   },
+     "examples": [
+      {
+        "input": "[3,9,20,null,null,15,7]",
+        "output": "3",
+        "explanation": "The maximum depth is 3: 3 → 20 → 7."
+      },
+      {
+        "input": "[1,null,2]",
+        "output": "2",
+        "explanation": "Depth is root and right child."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the tree is in the range [0, 10^4]",
+      "-100 <= Node.val <= 100"
+    ],
   "testCases": [
     { "input": "[3,9,20,null,null,15,7]", "expectedOutputs": ["3"] },
     { "input": "[1,null,2]", "expectedOutputs": ["2"] },
@@ -411,6 +676,24 @@
     "java": "public boolean canFinish(int numCourses, int[][] prerequisites) {\n    // your code here\n    return false;\n}",
     "cpp": "bool canFinish(int numCourses, vector<vector<int>>& prerequisites) {\n    // your code here\n    return false;\n}"
   },
+     "examples": [
+      {
+        "input": "2, [[1,0]]",
+        "output": "true",
+        "explanation": "You can finish the courses in order 0 → 1."
+      },
+      {
+        "input": "2, [[1,0],[0,1]]",
+        "output": "false",
+        "explanation": "Cycle detected: 0 → 1 → 0."
+      }
+    ],
+    "constraints": [
+      "1 <= numCourses <= 2000",
+      "0 <= prerequisites.length <= 5000",
+      "prerequisites[i].length == 2",
+      "All courses labeled from 0 to numCourses - 1"
+    ],
   "testCases": [
     { "input": "2\n[[1,0]]", "expectedOutputs": ["true"] },
     { "input": "2\n[[1,0],[0,1]]", "expectedOutputs": ["false"] },
@@ -436,6 +719,23 @@
     "java": "public int[] productExceptSelf(int[] nums) {\n    // your code here\n    return new int[]{};\n}",
     "cpp": "vector<int> productExceptSelf(vector<int>& nums) {\n    // your code here\n    return {};\n}"
   },
+     "examples": [
+      {
+        "input": "[1,2,3,4]",
+        "output": "[24,12,8,6]",
+        "explanation": "Exclude the current index when multiplying."
+      },
+      {
+        "input": "[0,1,2,3]",
+        "output": "[6,0,0,0]",
+        "explanation": "Zero affects the result."
+      }
+    ],
+    "constraints": [
+      "2 <= nums.length <= 10^5",
+      "-30 <= nums[i] <= 30",
+      "The product of any prefix or suffix won't overflow a 32-bit integer"
+    ],
   "testCases": [
     { "input": "[1,2,3,4]", "expectedOutputs": ["[24,12,8,6]"] },
     { "input": "[2,3,4,5]", "expectedOutputs": ["[60,40,30,24]"] },
@@ -461,6 +761,22 @@
     "java": "public boolean isPalindrome(ListNode head) {\n    // your code here\n    return false;\n}",
     "cpp": "bool isPalindrome(ListNode* head) {\n    // your code here\n    return false;\n}"
   },
+     "examples": [
+      {
+        "input": "[1,2,2,1]",
+        "output": "true",
+        "explanation": "The list is a palindrome."
+      },
+      {
+        "input": "[1,2]",
+        "output": "false",
+        "explanation": "1 and 2 are different."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the list is in the range [1, 10^5]",
+      "0 <= Node.val <= 9"
+    ],
   "testCases": [
     { "input": "[1,2]", "expectedOutputs": ["false"] },
     { "input": "[1,2,2,1]", "expectedOutputs": ["true"] },
@@ -486,6 +802,22 @@
     "java": "public boolean isSameTree(TreeNode p, TreeNode q) {\n    // your code here\n    return false;\n}",
     "cpp": "bool isSameTree(TreeNode* p, TreeNode* q) {\n    // your code here\n    return false;\n}"
   },
+    "examples": [
+      {
+        "input": "[1,2,3], [1,2,3]",
+        "output": "true",
+        "explanation": "The structure and values are the same."
+      },
+      {
+        "input": "[1,2], [1,null,2]",
+        "output": "false",
+        "explanation": "The trees have different structures."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in both trees is in the range [0, 100]",
+      "-10^4 <= Node.val <= 10^4"
+    ],
   "testCases": [
     { "input": "[1,2,3]\n[1,2,3]", "expectedOutputs": ["true"] },
     { "input": "[1,2]\n[1,null,2]", "expectedOutputs": ["false"] },
@@ -511,6 +843,23 @@
     "java": "public void rotate(int[] nums, int k) {\n    // your code here\n}",
     "cpp": "void rotate(vector<int>& nums, int k) {\n    // your code here\n}"
   },
+   "examples": [
+      {
+        "input": "[1,2,3,4,5,6,7], 3",
+        "output": "[5,6,7,1,2,3,4]",
+        "explanation": "Rotate right 3 times."
+      },
+      {
+        "input": "[-1,-100,3,99], 2",
+        "output": "[3,99,-1,-100]",
+        "explanation": "Elements are shifted right."
+      }
+    ],
+    "constraints": [
+      "1 <= nums.length <= 10^5",
+      "-2^31 <= nums[i] <= 2^31 - 1",
+      "0 <= k <= 10^5"
+    ],
   "testCases": [
     { "input": "[1,2,3,4,5,6,7]\n3", "expectedOutputs": ["[5,6,7,1,2,3,4]"] },
     { "input": "[-1,-100,3,99]\n2", "expectedOutputs": ["[3,99,-1,-100]"] },
@@ -536,6 +885,25 @@
     "java": "public ListNode mergeKLists(ListNode[] lists) {\n    // your code here\n    return null;\n}",
     "cpp": "ListNode* mergeKLists(vector<ListNode*>& lists) {\n    // your code here\n    return nullptr;\n}"
   },
+      "examples": [
+      {
+        "input": "[[1,4,5],[1,3,4],[2,6]]",
+        "output": "[1,1,2,3,4,4,5,6]",
+        "explanation": "Merge all lists into one sorted list."
+      },
+      {
+        "input": "[]",
+        "output": "[]",
+        "explanation": "No lists to merge."
+      }
+    ],
+    "constraints": [
+      "k == lists.length",
+      "0 <= k <= 10^4",
+      "0 <= lists[i].length <= 500",
+      "-10^4 <= Node.val <= 10^4",
+      "Lists are sorted in ascending order"
+    ],
   "testCases": [
     { "input": "[[1,4,5],[1,3,4],[2,6]]", "expectedOutputs": ["[1,1,2,3,4,4,5,6]"] },
     { "input": "[]", "expectedOutputs": ["[]"] },
@@ -561,6 +929,24 @@
     "java": "public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {\n    // your code here\n    return null;\n}",
     "cpp": "TreeNode* lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q) {\n    // your code here\n    return nullptr;\n}"
   },
+      "examples": [
+      {
+        "input": "[3,5,1,6,2,0,8,null,null,7,4], 5, 1",
+        "output": "3",
+        "explanation": "Common ancestor of 5 and 1 is 3."
+      },
+      {
+        "input": "[3,5,1,6,2,0,8,null,null,7,4], 5, 4",
+        "output": "5",
+        "explanation": "5 is ancestor of 4."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the tree is in the range [2, 10^5]",
+      "-10^9 <= Node.val <= 10^9",
+      "All Node values are unique",
+      "p and q exist in the tree"
+    ],
   "testCases": [
     { "input": "[3,5,1,6,2,0,8,null,null,7,4]\n5\n1", "expectedOutputs": ["3"] },
     { "input": "[3,5,1,6,2,0,8,null,null,7,4]\n5\n4", "expectedOutputs": ["5"] },
@@ -586,6 +972,24 @@
     "java": "public int findJudge(int n, int[][] trust) {\n    // your code here\n    return -1;\n}",
     "cpp": "int findJudge(int n, vector<vector<int>>& trust) {\n    // your code here\n    return -1;\n}"
   },
+   "examples": [
+      {
+        "input": "2, [[1,2]]",
+        "output": "2",
+        "explanation": "2 is trusted by 1 and trusts no one."
+      },
+      {
+        "input": "3, [[1,3],[2,3]]",
+        "output": "3",
+        "explanation": "Everyone trusts 3 except 3 themselves."
+      }
+    ],
+    "constraints": [
+      "1 <= n <= 1000",
+      "0 <= trust.length <= 10^4",
+      "trust[i].length == 2",
+      "All trust pairs are distinct"
+    ],
   "testCases": [
     { "input": "2\n[[1,2]]", "expectedOutputs": ["2"] },
     { "input": "3\n[[1,3],[2,3]]", "expectedOutputs": ["3"] },
@@ -611,6 +1015,23 @@
     "java": "public int[] topKFrequent(int[] nums, int k) {\n    // your code here\n    return new int[]{};\n}",
     "cpp": "vector<int> topKFrequent(vector<int>& nums, int k) {\n    // your code here\n    return {};\n}"
   },
+   "examples": [
+      {
+        "input": "[1,1,1,2,2,3], 2",
+        "output": "[1,2]",
+        "explanation": "1 and 2 are the most frequent."
+      },
+      {
+        "input": "[1], 1",
+        "output": "[1]",
+        "explanation": "Only one element in the array."
+      }
+    ],
+    "constraints": [
+      "1 <= nums.length <= 10^5",
+      "k is in the range [1, the number of unique elements]",
+      "It is guaranteed that the answer is unique"
+    ],
   "testCases": [
     { "input": "[1,1,1,2,2,3]\n2", "expectedOutputs": ["[1,2]", "[2,1]"] },
     { "input": "[1]\n1", "expectedOutputs": ["[1]"] },
@@ -636,6 +1057,24 @@
     "java": "public int search(int[] nums, int target) {\n    // your code here\n    return -1;\n}",
     "cpp": "int search(vector<int>& nums, int target) {\n    // your code here\n    return -1;\n}"
   },
+     "examples": [
+      {
+        "input": "[4,5,6,7,0,1,2], 0",
+        "output": "4",
+        "explanation": "The pivot is at index 4 where the value is 0."
+      },
+      {
+        "input": "[4,5,6,7,0,1,2], 3",
+        "output": "-1",
+        "explanation": "3 is not in the array."
+      }
+    ],
+    "constraints": [
+      "1 <= nums.length <= 5000",
+      "-10^4 <= nums[i] <= 10^4",
+      "All values of nums are unique",
+      "nums is sorted and then rotated"
+    ],
   "testCases": [
     { "input": "[4,5,6,7,0,1,2]\n0", "expectedOutputs": ["4"] },
     { "input": "[4,5,6,7,0,1,2]\n3", "expectedOutputs": ["-1"] },
@@ -661,6 +1100,23 @@
     "java": "public double myPow(double x, int n) {\n    // your code here\n    return 0.0;\n}",
     "cpp": "double myPow(double x, int n) {\n    // your code here\n    return 0.0;\n}"
   },
+    "examples": [
+      {
+        "input": "2.00000, 10",
+        "output": "1024.0",
+        "explanation": "2^10 = 1024"
+      },
+      {
+        "input": "2.00000, -2",
+        "output": "0.25",
+        "explanation": "2^-2 = 1 / 4 = 0.25"
+      }
+    ],
+    "constraints": [
+      "-100.0 < x < 100.0",
+      "-2^31 <= n <= 2^31-1",
+      "n is an integer"
+    ],
   "testCases": [
     { "input": "2.00000\n10", "expectedOutputs": ["1024.0"] },
     { "input": "2.10000\n3", "expectedOutputs": ["9.261"] },
@@ -686,6 +1142,22 @@
     "java": "public int minMeetingRooms(int[][] intervals) {\n    // your code here\n    return 0;\n}",
     "cpp": "int minMeetingRooms(vector<vector<int>>& intervals) {\n    // your code here\n    return 0;\n}"
   },
+     "examples": [
+      {
+        "input": "[[0,30],[5,10],[15,20]]",
+        "output": "2",
+        "explanation": "Two meetings overlap between [5,10] and [15,20]."
+      },
+      {
+        "input": "[[7,10],[2,4]]",
+        "output": "1",
+        "explanation": "No overlap, so only 1 room is needed."
+      }
+    ],
+    "constraints": [
+      "1 <= intervals.length <= 10^4",
+      "0 <= start_i < end_i <= 10^6"
+    ],
   "testCases": [
     { "input": "[[0,30],[5,10],[15,20]]", "expectedOutputs": ["2"] },
     { "input": "[[7,10],[2,4]]", "expectedOutputs": ["1"] },
@@ -712,6 +1184,23 @@
     "java": "public List<List<Integer>> subsets(int[] nums) {\n    // your code here\n    return new ArrayList<>();\n}",
     "cpp": "vector<vector<int>> subsets(vector<int>& nums) {\n    // your code here\n    return {};\n}"
   },
+    "examples": [
+      {
+        "input": "[1,2,3]",
+        "output": "[[],[1],[2],[3],[1,2],[1,3],[2,3],[1,2,3]]",
+        "explanation": "All subsets are generated."
+      },
+      {
+        "input": "[0]",
+        "output": "[[],[0]]",
+        "explanation": "Only 0 and empty set."
+      }
+    ],
+    "constraints": [
+      "1 <= nums.length <= 10",
+      "-10 <= nums[i] <= 10",
+      "All elements are unique"
+    ],
   "testCases": [
     { "input": "[1,2,3]", "expectedOutputs": ["[[],[1],[2],[3],[1,2],[1,3],[2,3],[1,2,3]]"] },
     { "input": "[0]", "expectedOutputs": ["[[],[0]]"] },
@@ -737,6 +1226,22 @@
     "java": "public void reorderList(ListNode head) {\n    // your code here\n}",
     "cpp": "void reorderList(ListNode* head) {\n    // your code here\n}"
   },
+     "examples": [
+      {
+        "input": "[1,2,3,4]",
+        "output": "[1,4,2,3]",
+        "explanation": "Last inserted after first, second after second last, etc."
+      },
+      {
+        "input": "[1,2,3,4,5]",
+        "output": "[1,5,2,4,3]",
+        "explanation": "Reordered from outside to center."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the list is in the range [1, 10^4]",
+      "0 <= Node.val <= 1000"
+    ],
   "testCases": [
     { "input": "[1,2,3,4]", "expectedOutputs": ["[1,4,2,3]"] },
     { "input": "[1,2,3,4,5]", "expectedOutputs": ["[1,5,2,4,3]"] },
@@ -762,6 +1267,22 @@
     "java": "public TreeNode invertTree(TreeNode root) {\n    // your code here\n    return null;\n}",
     "cpp": "TreeNode* invertTree(TreeNode* root) {\n    // your code here\n    return nullptr;\n}"
   },
+     "examples": [
+      {
+        "input": "[4,2,7,1,3,6,9]",
+        "output": "[4,7,2,9,6,3,1]",
+        "explanation": "All left and right subtrees are swapped recursively."
+      },
+      {
+        "input": "[2,1,3]",
+        "output": "[2,3,1]",
+        "explanation": "Simple mirror swap."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the tree is in the range [0, 100]",
+      "-100 <= Node.val <= 100"
+    ],
   "testCases": [
     { "input": "[4,2,7,1,3,6,9]", "expectedOutputs": ["[4,7,2,9,6,3,1]"] },
     { "input": "[2,1,3]", "expectedOutputs": ["[2,3,1]"] },
@@ -787,6 +1308,24 @@
     "java": "public boolean validTree(int n, int[][] edges) {\n    // your code here\n    return false;\n}",
     "cpp": "bool validTree(int n, vector<vector<int>>& edges) {\n    // your code here\n    return false;\n}"
   },
+     "examples": [
+      {
+        "input": "5, [[0,1],[0,2],[0,3],[1,4]]",
+        "output": "true",
+        "explanation": "No cycles and all nodes are connected."
+      },
+      {
+        "input": "5, [[0,1],[1,2],[2,3],[1,3],[1,4]]",
+        "output": "false",
+        "explanation": "Cycle detected between 1,2,3."
+      }
+    ],
+    "constraints": [
+      "1 <= n <= 2000",
+      "0 <= edges.length <= 5000",
+      "edges[i].length == 2",
+      "No duplicate edges"
+    ],
   "testCases": [
     { "input": "5\n[[0,1],[0,2],[0,3],[1,4]]", "expectedOutputs": ["true"] },
     { "input": "5\n[[0,1],[1,2],[2,3],[1,3],[1,4]]", "expectedOutputs": ["false"] },
@@ -812,6 +1351,22 @@
     "java": "public ListNode mergeTwoLists(ListNode l1, ListNode l2) {\n    // your code here\n    return null;\n}",
     "cpp": "ListNode* mergeTwoLists(ListNode* l1, ListNode* l2) {\n    // your code here\n    return nullptr;\n}"
   },
+    "examples": [
+      {
+        "input": "[1,2,4], [1,3,4]",
+        "output": "[1,1,2,3,4,4]",
+        "explanation": "Merged and sorted properly."
+      },
+      {
+        "input": "[], [0]",
+        "output": "[0]",
+        "explanation": "Empty list merged with non-empty one."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in both lists is in the range [0, 50]",
+      "-100 <= Node.val <= 100"
+    ],
   "testCases": [
     { "input": "[1,2,4]\n[1,3,4]", "expectedOutputs": ["[1,1,2,3,4,4]"] },
     { "input": "[]\n[]", "expectedOutputs": ["[]"] },
@@ -837,6 +1392,24 @@
     "java": "public int findDuplicate(int[] nums) {\n    // your code here\n    return -1;\n}",
     "cpp": "int findDuplicate(vector<int>& nums) {\n    // your code here\n    return -1;\n}"
   },
+      "examples": [
+      {
+        "input": "[1,3,4,2,2]",
+        "output": "2",
+        "explanation": "2 appears twice, rest are unique."
+      },
+      {
+        "input": "[3,1,3,4,2]",
+        "output": "3",
+        "explanation": "3 appears more than once."
+      }
+    ],
+    "constraints": [
+      "1 <= nums.length <= 10^5",
+      "1 <= nums[i] <= n (where n = nums.length - 1)",
+      "Exactly one duplicate number exists",
+      "The duplicate number can appear more than once"
+    ],
   "testCases": [
     { "input": "[1,3,4,2,2]", "expectedOutputs": ["2"] },
     { "input": "[3,1,3,4,2]", "expectedOutputs": ["3"] },
@@ -862,6 +1435,24 @@
     "java": "public Node cloneGraph(Node node) {\n    // your code here\n    return null;\n}",
     "cpp": "Node* cloneGraph(Node* node) {\n    // your code here\n    return nullptr;\n}"
   },
+     "examples": [
+      {
+        "input": "[[2,4],[1,3],[2,4],[1,3]]",
+        "output": "[[2,4],[1,3],[2,4],[1,3]]",
+        "explanation": "Each node and its neighbors are cloned."
+      },
+      {
+        "input": "[[2],[1]]",
+        "output": "[[2],[1]]",
+        "explanation": "Two connected nodes are cloned correctly."
+      }
+    ],
+    "constraints": [
+      "The number of nodes is in the range [0, 100]",
+      "1 <= Node.val <= 100",
+      "Node.val is unique",
+      "No duplicate or self-edges"
+    ],
   "testCases": [
     { "input": "[]", "expectedOutputs": ["[]"] },
     { "input": "[[2,4],[1,3],[2,4],[1,3]]", "expectedOutputs": ["[[2,4],[1,3],[2,4],[1,3]]"] },
@@ -887,6 +1478,24 @@
     "java": "public int missingNumber(int[] nums) {\n    // your code here\n    return -1;\n}",
     "cpp": "int missingNumber(vector<int>& nums) {\n    // your code here\n    return -1;\n}"
   },
+      "examples": [
+      {
+        "input": "[3,0,1]",
+        "output": "2",
+        "explanation": "All numbers from 0 to 3 except 2."
+      },
+      {
+        "input": "[0,1]",
+        "output": "2",
+        "explanation": "Missing the last number in range."
+      }
+    ],
+    "constraints": [
+      "n == nums.length",
+      "1 <= n <= 10^4",
+      "0 <= nums[i] <= n",
+      "All numbers are unique"
+    ],
   "testCases": [
     { "input": "[3,0,1]", "expectedOutputs": ["2"] },
     { "input": "[0,1]", "expectedOutputs": ["2"] },
@@ -912,6 +1521,24 @@
     "java": "public ListNode getIntersectionNode(ListNode headA, ListNode headB) {\n    // your code here\n    return null;\n}",
     "cpp": "ListNode* getIntersectionNode(ListNode* headA, ListNode* headB) {\n    // your code here\n    return nullptr;\n}"
   },
+    "examples": [
+      {
+        "input": "[4,1,8,4,5], [5,6,1,8,4,5]",
+        "output": "8",
+        "explanation": "Lists intersect at node with value 8."
+      },
+      {
+        "input": "[2,6,4], [1,5]",
+        "output": "null",
+        "explanation": "No intersection."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in both lists is in the range [0, 10^4]",
+      "1 <= Node.val <= 10^5",
+      "No cycles in either list",
+      "Lists may or may not intersect"
+    ],
   "testCases": [
     { "input": "[4,1,8,4,5]\n[5,6,1,8,4,5]", "expectedOutputs": ["8"] },
     { "input": "[1,9,1,2,4]\n[3,2,4]", "expectedOutputs": ["2"] },
@@ -937,6 +1564,24 @@
     "java": "public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {\n    // your code here\n    return null;\n}",
     "cpp": "TreeNode* lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q) {\n    // your code here\n    return nullptr;\n}"
   },
+      "examples": [
+      {
+        "input": "[3,5,1,6,2,0,8,null,null,7,4], 5, 1",
+        "output": "3",
+        "explanation": "LCA of 5 and 1 is 3."
+      },
+      {
+        "input": "[3,5,1,6,2,0,8,null,null,7,4], 5, 4",
+        "output": "5",
+        "explanation": "Node 5 is an ancestor of node 4."
+      }
+    ],
+    "constraints": [
+      "The number of nodes is in the range [2, 10^5]",
+      "-10^9 <= Node.val <= 10^9",
+      "All node values are unique",
+      "p and q exist in the tree"
+    ],
   "testCases": [
     { "input": "[3,5,1,6,2,0,8,null,null,7,4]\n5\n1", "expectedOutputs": ["3"] },
     { "input": "[3,5,1,6,2,0,8,null,null,7,4]\n5\n4", "expectedOutputs": ["5"] },
@@ -962,6 +1607,24 @@
     "java": "public boolean canFinish(int numCourses, int[][] prerequisites) {\n    // your code here\n    return false;\n}",
     "cpp": "bool canFinish(int numCourses, vector<vector<int>>& prerequisites) {\n    // your code here\n    return false;\n}"
   },
+    "examples": [
+      {
+        "input": "2, [[1,0]]",
+        "output": "true",
+        "explanation": "Finish in order 0 → 1."
+      },
+      {
+        "input": "2, [[1,0],[0,1]]",
+        "output": "false",
+        "explanation": "Cycle: 0 → 1 → 0."
+      }
+    ],
+    "constraints": [
+      "1 <= numCourses <= 2000",
+      "0 <= prerequisites.length <= 5000",
+      "prerequisites[i].length == 2",
+      "Courses are labeled from 0 to numCourses - 1"
+    ],
   "testCases": [
     { "input": "2\n[[1,0]]", "expectedOutputs": ["true"] },
     { "input": "2\n[[1,0],[0,1]]", "expectedOutputs": ["false"] },
@@ -987,6 +1650,24 @@
     "java": "public int majorityElement(int[] nums) {\n    // your code here\n    return -1;\n}",
     "cpp": "int majorityElement(vector<int>& nums) {\n    // your code here\n    return -1;\n}"
   },
+      "examples": [
+      {
+        "input": "[3,2,3]",
+        "output": "3",
+        "explanation": "3 appears more than n/2 times."
+      },
+      {
+        "input": "[2,2,1,1,1,2,2]",
+        "output": "2",
+        "explanation": "2 is the majority element."
+      }
+    ],
+    "constraints": [
+      "n == nums.length",
+      "1 <= n <= 5 * 10^4",
+      "-10^9 <= nums[i] <= 10^9",
+      "The majority element always exists"
+    ],
   "testCases": [
     { "input": "[3,2,3]", "expectedOutputs": ["3"] },
     { "input": "[2,2,1,1,1,2,2]", "expectedOutputs": ["2"] },
@@ -1012,6 +1693,22 @@
     "java": "public boolean hasCycle(ListNode head) {\n    // your code here\n    return false;\n}",
     "cpp": "bool hasCycle(ListNode *head) {\n    // your code here\n    return false;\n}"
   },
+     "examples": [
+      {
+        "input": "[3,2,0,-4] (pos = 1)",
+        "output": "true",
+        "explanation": "Cycle detected at node with value 2."
+      },
+      {
+        "input": "[1] (pos = -1)",
+        "output": "false",
+        "explanation": "Single node with no cycle."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the list is in the range [0, 10^4]",
+      "-10^5 <= Node.val <= 10^5"
+    ],
   "testCases": [
     { "input": "[3,2,0,-4] (pos = 1)", "expectedOutputs": ["true"] },
     { "input": "[1,2] (pos = 0)", "expectedOutputs": ["true"] },
@@ -1037,6 +1734,22 @@
     "java": "public int maxDepth(TreeNode root) {\n    // your code here\n    return 0;\n}",
     "cpp": "int maxDepth(TreeNode* root) {\n    // your code here\n    return 0;\n}"
   },
+      "examples": [
+      {
+        "input": "[3,9,20,null,null,15,7]",
+        "output": "3",
+        "explanation": "Depth is root → 20 → 7."
+      },
+      {
+        "input": "[1,null,2]",
+        "output": "2",
+        "explanation": "Only right-side nodes."
+      }
+    ],
+    "constraints": [
+      "The number of nodes in the tree is in the range [0, 10^4]",
+      "-100 <= Node.val <= 100"
+    ],
   "testCases": [
     { "input": "[3,9,20,null,null,15,7]", "expectedOutputs": ["3"] },
     { "input": "[1,null,2]", "expectedOutputs": ["2"] },
@@ -1062,6 +1775,26 @@
     "java": "public int[] findRedundantConnection(int[][] edges) {\n    // your code here\n    return new int[2];\n}",
     "cpp": "vector<int> findRedundantConnection(vector<vector<int>>& edges) {\n    // your code here\n    return {};\n}"
   },
+      "examples": [
+      {
+        "input": "[[1,2],[1,3],[2,3]]",
+        "output": "[2,3]",
+        "explanation": "Edge [2,3] creates a cycle."
+      },
+      {
+        "input": "[[1,2],[2,3],[3,4],[1,4],[1,5]]",
+        "output": "[1,4]",
+        "explanation": "Removing [1,4] breaks the cycle."
+      }
+    ],
+    "constraints": [
+      "n == edges.length",
+      "3 <= n <= 1000",
+      "edges[i].length == 2",
+      "edges[i] is a valid undirected edge",
+      "There are no duplicate edges",
+      "The graph is connected except for the extra edge"
+    ],
   "testCases": [
     { "input": "[[1,2],[1,3],[2,3]]", "expectedOutputs": ["[2,3]"] },
     { "input": "[[1,2],[2,3],[3,4],[1,4],[1,5]]", "expectedOutputs": ["[1,4]"] },
@@ -1087,6 +1820,23 @@
     "java": "public void rotate(int[] nums, int k) {\n    // your code here\n}",
     "cpp": "void rotate(vector<int>& nums, int k) {\n    // your code here\n}"
   },
+      "examples": [
+      {
+        "input": "[1,2,3,4,5,6,7], 3",
+        "output": "[5,6,7,1,2,3,4]",
+        "explanation": "Array is rotated to the right by 3 steps."
+      },
+      {
+        "input": "[-1,-100,3,99], 2",
+        "output": "[3,99,-1,-100]",
+        "explanation": "Rotated twice to the right."
+      }
+    ],
+    "constraints": [
+      "1 <= nums.length <= 10^5",
+      "-2^31 <= nums[i] <= 2^31 - 1",
+      "0 <= k <= 10^5"
+    ],
   "testCases": [
     { "input": "[1,2,3,4,5,6,7]\n3", "expectedOutputs": ["[5,6,7,1,2,3,4]"] },
     { "input": "[-1,-100,3,99]\n2", "expectedOutputs": ["[3,99,-1,-100]"] },

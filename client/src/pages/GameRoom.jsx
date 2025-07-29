@@ -39,31 +39,7 @@ const GameRoom = ({ navigate, user, roomData }) => {
   const progressTimeoutRef = useRef(null);
   
   // Sample problem (will come from server)
-  const [problem, setProblem] = useState({
-    title: "Two Sum",
-    difficulty: "Easy",
-    description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
-
-You can return the answer in any order.`,
-    examples: [
-      {
-        input: "nums = [2,7,11,15], target = 9",
-        output: "[0,1]",
-        explanation: "Because nums[0] + nums[1] == 9, we return [0, 1]."
-      },
-      {
-        input: "nums = [3,2,4], target = 6", 
-        output: "[1,2]"
-      }
-    ],
-    constraints: [
-      "2 ≤ nums.length ≤ 104",
-      "-109 ≤ nums[i] ≤ 109",
-      "-109 ≤ target ≤ 109"
-    ]
-  });
+    const [problem, setProblem] = useState(null);
 
   // Starter code
   const starterCode = {
@@ -93,24 +69,6 @@ You can return the answer in any order.`,
       gameSocket.connect(user);
     }
 
-    // Join match if we have roomData with matchCode (William's logic)
-    if (roomData?.matchCode) {
-      console.log('Joining match with code:', roomData.matchCode);
-      gameSocket.socket.emit("join_match", {
-        matchCode: roomData.matchCode, 
-        username: user?.username || 'Anonymous'
-      });
-    }
-
-    // Join room if we have roomData with roomCode
-    if (roomData?.roomCode) {
-      console.log('Joining room with code:', roomData.roomCode);
-      gameSocket.joinRoom(roomData.roomCode, {
-        id: user?.id,
-        username: user?.username
-      });
-    }
-
     /**
      * Socket Event Handlers
      */
@@ -133,10 +91,12 @@ You can return the answer in any order.`,
 
     // William's start_game event
     const handleStartGame = (data) => {
-      console.log('Game starting with problem:', data);
+      console.log('🔥 [GameRoom] start_game payload:', data);
       setGameState('active');
       if (data.problem) {
+        console.log('📦 [GameRoom] setting problem:', data.problem);
         setProblem(data.problem);
+        setCode(data.problem.functionSignature[language] || '');
       }
       setTimeLeft(data.timeLimit || 600);
       setChatMessages([{ 
@@ -307,6 +267,18 @@ You can return the answer in any order.`,
     };
   }, [user, roomData]);
 
+  useEffect(() => {
+  if (roomData?.problem) {
+    console.log('💡 [GameRoom] init from navigation:', roomData.problem);
+    setProblem(roomData.problem);
+    setGameState('active');
+    setCode(roomData.problem.functionSignature[language] || '');
+    if (roomData.timeLimit) {
+      setTimeLeft(roomData.timeLimit);
+    }
+  }
+}, [roomData, language]);
+
   /**
    * Timer effect - handles countdown
    */
@@ -327,14 +299,15 @@ You can return the answer in any order.`,
     }
   }, [gameState, timeLeft]);
 
-  /**
-   * Initialize code when language changes
-   */
+  //Restart de code every time you change language
   useEffect(() => {
-    setCode(starterCode[language] || '');
-  }, [language]);
+  if (problem) {
+    setCode(problem.functionSignature[language] || '');
+  }
+  }, [language, problem]);
+  
 
-  /**
+  /*
    * Handle typing indicators and progress updates
    */
   const handleCodeChange = useCallback((newCode) => {
@@ -494,7 +467,18 @@ You can return the answer in any order.`,
   /**
    * Render problem panel
    */
-  const renderProblemPanel = () => (
+const renderProblemPanel = () => {
+  // show loading until we find problem
+  if (!problem) {
+    return (
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 h-full flex items-center justify-center">
+        <p className="text-gray-400 text-center">Waiting for problem…</p>
+      </div>
+    );
+  }
+
+  // once we get it, we renderize it
+  return (
     <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 h-full overflow-y-auto">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -508,7 +492,7 @@ You can return the answer in any order.`,
         <p className="text-gray-300 mb-6 leading-relaxed">{problem.description}</p>
         
         <div className="space-y-4">
-          {problem.examples.map((example, index) => (
+          {problem.examples?.map((example, index) => (
             <div key={index} className="bg-gray-900/50 rounded-lg p-4">
               <div className="text-sm font-semibold text-blue-400 mb-2">Example {index + 1}:</div>
               <div className="font-mono text-sm space-y-1">
@@ -524,15 +508,16 @@ You can return the answer in any order.`,
 
         <div className="mt-6">
           <div className="text-sm font-semibold text-gray-400 mb-2">Constraints:</div>
-          <ul className="text-sm text-gray-300 space-y-1">
-            {problem.constraints.map((constraint, index) => (
-              <li key={index} className="font-mono">• {constraint}</li>
-            ))}
-          </ul>
+          <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
+            {problem.constraints?.map((constraint, index) => (
+              <li key={index} className="font-mono">{constraint}</li>
+              ))}
+              </ul>
+            </div>
         </div>
       </div>
-    </div>
   );
+};
 
   /**
    * Render code editor panel

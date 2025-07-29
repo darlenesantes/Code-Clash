@@ -17,6 +17,7 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [roomData, setRoomData]   = useState(null);
 
   // Initialize app with proper auth service
   useEffect(() => {
@@ -55,8 +56,11 @@ const App = () => {
   }, []);
 
   // Navigation function
-  const navigate = (page) => {
-    console.log('Navigating to:', page);
+  const navigate = (page,payload) => {
+    console.log('Navigating to:', page, payload);
+    if (page === 'game-room') {
+      setRoomData(payload);
+    }
     setCurrentPage(page);
   };
 
@@ -110,7 +114,9 @@ const App = () => {
     navigate,
     handleLogin,
     handleLogout,
-    currentPage
+    currentPage,
+    roomData,
+    setRoomData
   };
 
   // Page routing
@@ -167,7 +173,7 @@ const App = () => {
           <GameRoom 
             navigate={navigate} 
             user={user}
-            roomData={null}
+            roomData={roomData}
           />
         );  
 

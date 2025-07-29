@@ -25,6 +25,10 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
   const [success, setSuccess] = useState('');
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [playersInQueue, setPlayersInQueue] = useState(0);
+  
+  const [language, setLanguage] = useState('python');   // python by defect
+  const [category, setCategory] = useState('');         // empty means any
+  const topics = ['arrays','linked list','graphs','trees'];
 
   // Available difficulty levels for problems
   const difficulties = [
@@ -93,12 +97,7 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
     const handleMatchFound = (data) => {
       console.log('Match found:', data);
       setIsSearching(false);
-      setSuccess('Match found! Starting game...');
-      
-      // Navigate to game room after brief success message
-      setTimeout(() => {
-        navigate('game-room', { matchData: data });
-      }, 1500);
+      setSuccess('Match found! Waiting for both players…');
     };
 
     const handleMatchCancelled = (data) => {
@@ -124,12 +123,14 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
       console.log('Room joined:', data);
       setSuccess('Room joined! Waiting for opponent...');
       
-      // If room has 2 players, start the game
-      if (data.playerCount >= 2) {
-        setTimeout(() => {
-          navigate('game-room', { roomData: data });
-        }, 1000);
-      }
+    };
+
+    const handleStartGame = (gameData) => {
+      console.log('🔥 [MatchLobby] start_game received:', gameData);
+      navigate('game-room', {
+        roomCode,
+        ...gameData
+        });
     };
 
     const handleRoomError = (data) => {
@@ -137,10 +138,6 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
       setError(data.message || 'Room error occurred.');
     };
 
-    const handleGameStarted = (data) => {
-      console.log('Game started:', data);
-      navigate('game-room', { gameData: data });
-    };
 
     const handleError = (data) => {
       console.error('Socket error:', data);
@@ -154,8 +151,9 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
     gameSocket.on('queue_update', handleQueueUpdate);
     gameSocket.on('room_created', handleRoomCreated);
     gameSocket.on('room_joined', handleRoomJoined);
+    gameSocket.on('start_game', handleStartGame);
     gameSocket.on('room_error', handleRoomError);
-    gameSocket.on('game_started', handleGameStarted);
+    //gameSocket.on('game_started', handleGameStarted);
     gameSocket.on('error', handleError);
 
     // Cleanup function - removes event listeners when component unmounts
@@ -168,8 +166,9 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
       gameSocket.off('queue_update', handleQueueUpdate);
       gameSocket.off('room_created', handleRoomCreated);
       gameSocket.off('room_joined', handleRoomJoined);
+      gameSocket.off('start_game', handleStartGame);
       gameSocket.off('room_error', handleRoomError);
-      gameSocket.off('game_started', handleGameStarted);
+      //gameSocket.off('game_started', handleGameStarted);
       gameSocket.off('error', handleError);
       
       // Leave any active matchmaking when component unmounts
@@ -200,23 +199,23 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
    * Create a private room with selected difficulty
    */
   const generateRoomCode = () => {
-    // Check connection before attempting to create room
-    if (!gameSocket.isSocketConnected()) {
-      setError('Please wait for connection to establish.');
-      return;
-    }
-
-    console.log('Creating room with difficulty:', difficulty);
-    
-    // Use GameSocket class method to create room
-    gameSocket.createRoom({
-      difficulty: difficulty,
-      creator: {
-        id: user?.id,
-        username: user?.username
+      if (!gameSocket.isSocketConnected()) {
+        setError('Please wait for connection to establish.');
+        return;
       }
-    });
-  };
+
+      console.log('Creating room with:', { difficulty, language, category });
+
+      gameSocket.createRoom({
+        difficulty,
+        language,
+        category,
+        creator: {
+          id: user.id,
+          username: user.username
+        }
+      });
+    };
 
   /**
    * Copy room code to clipboard for sharing
@@ -433,6 +432,37 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
               ))}
             </div>
           </div>
+
+          {/* Topic Selection */}
+<div className="mt-6">
+  <h3 className="text-lg font-semibold text-white mb-2">Choose Topic</h3>
+  <div className="flex flex-wrap gap-2">
+    {topics.map(t => (
+      <button
+        key={t}
+        onClick={() => setCategory(t)}
+        className={`px-3 py-1 rounded ${
+          category === t
+            ? 'bg-purple-500 text-white'
+            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+        }`}
+      >
+        {t}
+      </button>
+    ))}
+    {/* Botón para "Any" */}
+    <button
+      onClick={() => setCategory('')}
+      className={`px-3 py-1 rounded ${
+        category === ''
+          ? 'bg-purple-500 text-white'
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+      }`}
+    >
+      Any
+    </button>
+  </div>
+</div>
 
           <button
             onClick={generateRoomCode}

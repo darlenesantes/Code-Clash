@@ -47,15 +47,7 @@ router.get('/question', (req, res) => {
     const randomProblem = filteredProblems[Math.floor(Math.random() * filteredProblems.length)];
 
     // Return the selected problem
-    res.status(200).json({
-        id: randomProblem.id,
-        title: randomProblem.title,
-        description: randomProblem.description,
-        difficulty: randomProblem.difficulty,
-        language: language,
-        functionSignature: randomProblem.functionSignature[language], // this returns the starter code for requested language
-        testCases: randomProblem.testCases
-    });
+    res.status(200).json(randomProblem);
 });
 
 // Export the router

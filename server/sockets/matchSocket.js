@@ -1,10 +1,10 @@
 // Store matches in memory (matchCode -> [sockets])
+const axios = require('axios');
 const { runJudge0 } = require("../utils/judge0Helper");
 const {
   buildJsWrappedCode,
   formatTestCasesAsStdin
 } = require("../utils/wrappers");
-const problems = require("../data/problems.json");
 const matchRooms = {};
 const matchData = {};
 
@@ -45,7 +45,7 @@ function matchSocketHandler(socket, io) {
     socket.emit("server_message", "Welcome to Code Clash!");
 
     //Create Room (Private)
-    socket.on("create_room", ({ difficulty, creator }) => {
+    socket.on("create_room", ({ difficulty, language, category, creator }) => {
     console.log("🔥 Received create_room from:", creator?.username);
 
     let roomCode;
@@ -55,8 +55,10 @@ function matchSocketHandler(socket, io) {
     } while (matchRooms[roomCode]);
 
     matchRooms[roomCode] = [socket];
-    matchData[roomCode] = {
+      matchData[roomCode] = {
       difficulty,
+      language,
+      category,
       players: [creator],
       createdAt: Date.now()
     };
@@ -65,12 +67,12 @@ function matchSocketHandler(socket, io) {
     socket.data.username = creator.username;
     socket.data.userId = creator.id;
 
-    console.log(`${creator.username} created room ${roomCode}`);
+    console.log(`${creator.username} created room ${roomCode} with`, { difficulty, language, category });
     socket.emit("room_created", { roomCode });
   });
 
   // ✅ Join Room
-  socket.on("join_room", ({ roomCode, player }) => {
+  socket.on("join_room", async ({ roomCode, player }) => {
     const room = matchRooms[roomCode];
 
     if (!room || room.length >= 2) {
@@ -93,13 +95,19 @@ function matchSocketHandler(socket, io) {
 
     // Start game when 2 players are in
     if (matchRooms[roomCode].length === 2) {
-      const difficulty = matchData[roomCode].difficulty || 'easy';
-      const problem = problems.find(p => p.difficulty === difficulty) || problems[0];
+      const { difficulty, language, category } = matchData[roomCode];
+          const response = await axios.get(
+      "http://localhost:3001/api/game/question",
+      { params: { difficulty, language, category } }
+    );
+      const problem = response.data;
 
       matchData[roomCode].problem = problem;
 
-      console.log("🔥 [matchSocket] BOTH PLAYERS JOINED — starting game in room", roomCode);
-      console.log("📦 [matchSocket] Problem being sent:", problem.id, problem.title);
+      console.log(
+        `🔥 [matchSocket] BOTH PLAYERS JOINED — starting game in room ${roomCode}`,
+        { difficulty, language, category, problemId: problem.id }
+      );
 
       io.to(roomCode).emit("start_game", {
         problem
@@ -113,7 +121,7 @@ function matchSocketHandler(socket, io) {
   });
 
     //User wants to join a match
-    socket.on ("join_match",({ matchCode, username}) => {
+    socket.on ("join_match", async({ matchCode, username}) => {
         socket.data.username = username; // Store username on socket
         
         // Create match if it doesn't exist
@@ -128,57 +136,55 @@ function matchSocketHandler(socket, io) {
 
         // If 2 players are in, start the game
         if (matchRooms[matchCode].length === 2) {
-            const problem = problems.find(p => p.id === 2); // Pick any for now — maybe random later
-            if (!problem) return;
+          const difficulty = "easy"; // You can later let this be dynamic
+          const response = await axios.get(`http://localhost:3001/api/game/question?difficulty=${difficulty}`);
+          const problem = response.data;
 
-            matchData[matchCode] = { problem };
+          matchData[matchCode] = { problem };
 
-            io.to(matchCode).emit("start_game", {
-                problem: problem.description
-            });
+          console.log("🔥 [matchSocket] Quick match started:", matchCode);
+          console.log("📦 [matchSocket] Problem sent:", problem.id, problem.title);
+
+          io.to(matchCode).emit("start_game", {
+            problem
+          });
             }
     });
     
-    // Listen for a test message from the client
-    socket.on("client_message", (msg) => {
-        console.log(`Message from client ${socket.id}:`, msg);
-    });
 
     // Listen for a submission from the client
     socket.on("submit_code", async ({ matchCode, code, languageId }) => {
-        try {
-            const problem = matchData[matchCode]?.problem;
-            if (!problem) throw new Error("Problem not found");
+      try {
+        const problem = matchData[matchCode]?.problem;
+        if (!problem) throw new Error("Problem not found");
 
-            const wrappedCode = buildJsWrappedCode(code, problem.testCases);
-            const stdin = formatTestCasesAsStdin(problem.testCases);
+        const wrappedCode = buildJsWrappedCode(code, problem.testCases);
+        const stdin = formatTestCasesAsStdin(problem.testCases);
 
-            const result = await runJudge0(wrappedCode, languageId, "", stdin);
-            const output = (result.stdout || result.stderr || "").trim();
+        const result = await runJudge0(wrappedCode, languageId, "", stdin);
+        const output = (result.stdout || result.stderr || "").trim();
 
-            // Check if all tests passed by searching for ❌
-            const passedAll = !output.includes("❌");
+        const passedAll = !output.includes("❌");
 
-            if (passedAll) {
-            io.to(matchCode).emit("match_over", {
-                winner: socket.data.username,
-                output
-            });
-            socket.to(matchCode).emit("lock_editor");
-            } else {
-            socket.emit("submission_result", {
-                passed: false,
-                output
-            });
-            }
-
-}       catch (err) {
-        socket.emit("submission_result", {
+        if (passedAll) {
+          io.to(matchCode).emit("match_over", {
+            winner: socket.data.username,
+            output
+          });
+          socket.to(matchCode).emit("lock_editor");
+        } else {
+          socket.emit("submission_result", {
             passed: false,
-             error: err.message
+            output
+          });
+        }
+      } catch (err) {
+        socket.emit("submission_result", {
+          passed: false,
+          error: err.message
         });
-    }
-});
+      }
+    });
     
     // Disconnect cleanup
     socket.on("disconnect", () => {

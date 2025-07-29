@@ -223,16 +223,7 @@ const CodeClashLanding = ({ navigate, user }) => {
                   Watch Demo
                 </Button>
               </div>
-              
-              {/* Add Test Room Button */}
-              <button
-                onClick={() => navigate('test-room')}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg"
-              >
-                Go to Test Room
-              </button>
-              {/* End test room button */}
-              
+
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-6 pt-8">
                 <div className="text-center">
