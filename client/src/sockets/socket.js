@@ -104,6 +104,11 @@ class GameSocket {
       this.emit('game_started', data);
     });
 
+    this.socket.on('start_game', (data) => {
+      console.log('🔔 [GameSocket] raw start_game:', data);
+      this.emit('start_game', data);
+    });
+
     this.socket.on('opponent_joined', (data) => {
       console.log('Opponent joined:', data);
       this.emit('opponent_joined', data);
@@ -190,6 +195,8 @@ class GameSocket {
     console.log('Creating room:', roomData);
     this.socket.emit('create_room', {
       difficulty: roomData.difficulty,
+      language:   roomData.language,
+      category:   roomData.category,
       isPrivate: true,
       creator: roomData.creator
     });
@@ -261,8 +268,9 @@ class GameSocket {
       return;
     }
     
-    console.log('Submitting solution');
+    console.log('Submitting solution', solutionData);
     this.socket.emit('submit_solution', {
+      roomCode: solutionData.roomCode,
       code: solutionData.code,
       language: solutionData.language,
       submissionTime: Date.now()
