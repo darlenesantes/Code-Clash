@@ -224,9 +224,7 @@ socket.on("submit_solution", async ({ roomCode: matchCode, code, language }) => 
   // 1) Build & run the Python wrapper
   const wrappedCode = buildPythonWrapper(code, problem.testCases);
   // Only send the actual input lines (ignore expectedOutputs)
-  const stdin = problem.testCases
-    .map(tc => tc.input.trim())
-    .join('\n\n');
+  const stdin = formatTestCasesAsStdin(problem.testCases, "array");;
   console.log("=== DEBUG PYTHON stdin ===\n" + stdin + "\n=== END DEBUG ===");
 
   const result  = await runJudge0(wrappedCode, languageId, "", stdin);

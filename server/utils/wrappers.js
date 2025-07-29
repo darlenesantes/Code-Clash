@@ -289,33 +289,43 @@ function buildPythonWrapper(userCode /* string */, testCases /* array */) {
   return `
 ${userCode}
 
-import sys, json
+import sys, json, inspect
 
 def run_tests():
     data = sys.stdin.read().strip()
     if not data:
         return
     blocks = data.split("\\n\\n")
+
     for idx, block in enumerate(blocks, start=1):
-        lines = block.split("\\n")
+        lines = block.strip().split("\\n")
+
         try:
-            args = [ json.loads(l) for l in lines if l.strip() ]
+            # Dynamically determine number of parameters
+            sig = inspect.signature(${fnName})
+            num_args = len(sig.parameters)
+
+            # First num_args lines are inputs
+            args = [json.loads(l) for l in lines[:num_args]]
+            expected_lines = lines[num_args:]
+
             res = ${fnName}(*args)
             output = json.dumps(res)
 
-            expected = [ json.loads(l) for l in lines[len(args):] ]
-            passed = output in [ json.dumps(e) for e in expected ]
+            expected = [json.dumps(json.loads(l)) for l in expected_lines]
+            passed = output in expected
 
             if passed:
                 print(f"✅ Test {idx}: Passed")
             else:
                 print(f"❌ Test {idx}: Failed")
-                print(f"  Input: {' | '.join(lines[:len(args)])}")
+                print(f"  Input: {' | '.join(lines[:num_args])}")
                 print(f"  Expected: {expected}")
                 print(f"  Got: {output}")
+
         except Exception as e:
             print(f"❌ Test {idx}: Error")
-            print(f"  Input: {' | '.join(lines[:len(args)])}")
+            print(f"  Input: {' | '.join(lines[:num_args])}")
             print(f"  Error: {e}")
 
 if __name__ == "__main__":
