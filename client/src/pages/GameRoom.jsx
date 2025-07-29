@@ -7,6 +7,7 @@ import {
 import Avatar from '../components/ui/Avatar';
 import gameSocket from '../sockets/socket';
 
+
 const GameRoom = ({ navigate, user, roomData }) => {
   // Game state
   const [gameState, setGameState] = useState('waiting'); // waiting, active, completed
@@ -18,6 +19,7 @@ const GameRoom = ({ navigate, user, roomData }) => {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [gameResult, setGameResult] = useState(null);
   const [matchStartTime, setMatchStartTime] = useState(null);
+  const [submitTimestamp, setSubmitTimestamp] = useState(null);
   
   // Opponent state
   const [opponent, setOpponent] = useState({
@@ -40,31 +42,7 @@ const GameRoom = ({ navigate, user, roomData }) => {
   const progressTimeoutRef = useRef(null);
   
   // Sample problem (will come from server)
-  const [problem, setProblem] = useState({
-    title: "Two Sum",
-    difficulty: "Easy",
-    description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
-
-You can return the answer in any order.`,
-    examples: [
-      {
-        input: "nums = [2,7,11,15], target = 9",
-        output: "[0,1]",
-        explanation: "Because nums[0] + nums[1] == 9, we return [0, 1]."
-      },
-      {
-        input: "nums = [3,2,4], target = 6", 
-        output: "[1,2]"
-      }
-    ],
-    constraints: [
-      "2 ≤ nums.length ≤ 104",
-      "-109 ≤ nums[i] ≤ 109",
-      "-109 ≤ target ≤ 109"
-    ]
-  });
+    const [problem, setProblem] = useState(null);
 
   // Starter code
   const starterCode = {
@@ -94,24 +72,6 @@ You can return the answer in any order.`,
       gameSocket.connect(user);
     }
 
-    // Join match if we have roomData with matchCode (William's logic)
-    if (roomData?.matchCode) {
-      console.log('Joining match with code:', roomData.matchCode);
-      gameSocket.socket.emit("join_match", {
-        matchCode: roomData.matchCode, 
-        username: user?.username || 'Anonymous'
-      });
-    }
-
-    // Join room if we have roomData with roomCode
-    if (roomData?.roomCode) {
-      console.log('Joining room with code:', roomData.roomCode);
-      gameSocket.joinRoom(roomData.roomCode, {
-        id: user?.id,
-        username: user?.username
-      });
-    }
-
     /**
      * Socket Event Handlers
      */
@@ -134,10 +94,12 @@ You can return the answer in any order.`,
 
     // William's start_game event
     const handleStartGame = (data) => {
-      console.log('Game starting with problem:', data);
+      console.log('🔥 [GameRoom] start_game payload:', data);
       setGameState('active');
       if (data.problem) {
+        console.log('📦 [GameRoom] setting problem:', data.problem);
         setProblem(data.problem);
+        setCode(data.problem.functionSignature[language] || '');
       }
       // setting the time
       const totalGameTime = 600; // 10 minutes
@@ -278,11 +240,36 @@ You can return the answer in any order.`,
     gameSocket.on('chat_message', handleChatMessage);
     gameSocket.on('error', handleError);
 
+    const onSubmissionResult = ({ output, allPassed, winner }) => {
+  handleSubmissionResult({ output });  // still uses your existing parser
+  setIsSubmitting(false);              // stop the spinner
+  if (allPassed) {
+    setGameState('completed');
+    setGameResult({
+      winner,
+      reason: 'solution_correct',
+      solveTime: Date.now() - submitTimestamp,
+      coinsEarned: 50,
+      xpEarned: 25
+    });
+  }
+};
+
+gameSocket.on('submission_result', onSubmissionResult);
+
+
     // William's direct socket events
-    if (gameSocket.socket) {
-      gameSocket.socket.on('start_game', handleStartGame);
-      gameSocket.socket.on('server_message', handleServerMessage);
-    }
+      const handleSubmissionResult = ({ passed, output }) => {
+        const lines = output.split(/\r?\n/);
+        const results = lines
+          .map(raw => {
+            const m = raw.match(/^(✅|❌)\s*Test\s*(\d+):\s*(.+)$/);
+            return m ? { id: Number(m[2]), passed: m[1] === '✅', text: raw } : null;
+          })
+          .filter(r => r !== null);
+        setTestResults(results);
+        setIsSubmitting(false); // this line is OK to keep here too for fallback
+      };
 
     /**
      * Cleanup function
@@ -303,6 +290,10 @@ You can return the answer in any order.`,
       gameSocket.off('game_ended', handleGameEnded);
       gameSocket.off('chat_message', handleChatMessage);
       gameSocket.off('error', handleError);
+      gameSocket.off('submission_result', onSubmissionResult);
+
+
+
 
       // Remove William's direct socket events
       if (gameSocket.socket) {
@@ -319,6 +310,18 @@ You can return the answer in any order.`,
       }
     };
   }, [user, roomData]);
+
+  useEffect(() => {
+  if (roomData?.problem) {
+    console.log('💡 [GameRoom] init from navigation:', roomData.problem);
+    setProblem(roomData.problem);
+    setGameState('active');
+    setCode(roomData.problem.functionSignature[language] || '');
+    if (roomData.timeLimit) {
+      setTimeLeft(roomData.timeLimit);
+    }
+  }
+}, [roomData, language]);
 
   /**
    * Timer effect - handles countdown
@@ -347,14 +350,15 @@ You can return the answer in any order.`,
     }
   }, [gameState, matchStartTime]);
 
-  /**
-   * Initialize code when language changes
-   */
+  //Restart de code every time you change language
   useEffect(() => {
-    setCode(starterCode[language] || '');
-  }, [language]);
+  if (problem) {
+    setCode(problem.functionSignature[language] || '');
+  }
+  }, [language, problem]);
+  
 
-  /**
+  /*
    * Handle typing indicators and progress updates
    */
   const handleCodeChange = useCallback((newCode) => {
@@ -406,39 +410,19 @@ You can return the answer in any order.`,
    */
   const handleSubmit = async () => {
     if (!code.trim()) return;
-    
+
+    setSubmitTimestamp(Date.now());
     setIsSubmitting(true);
     
     // Send submission via socket
     gameSocket.submitSolution({
+      roomCode: roomData.roomCode,
       code: code.trim(),
       language,
       submissionTime: Date.now()
     });
     
     // Simulate test execution (real implementation would wait for server response)
-    setTimeout(() => {
-      const mockResults = [
-        { id: 1, input: '[2,7,11,15], 9', expected: '[0,1]', actual: '[0,1]', passed: true },
-        { id: 2, input: '[3,2,4], 6', expected: '[1,2]', actual: '[1,2]', passed: true },
-        { id: 3, input: '[3,3], 6', expected: '[0,1]', actual: '[0,1]', passed: true }
-      ];
-      
-      setTestResults(mockResults);
-      setIsSubmitting(false);
-      
-      // If all tests pass, game ends with victory
-      if (mockResults.every(r => r.passed)) {
-        setGameState('completed');
-        setGameResult({ 
-          winner: user.id, 
-          reason: 'solution_correct',
-          solveTime: 600 - timeLeft,
-          coinsEarned: 50,
-          xpEarned: 25
-        });
-      }
-    }, 2000);
   };
 
   /**
@@ -514,7 +498,18 @@ You can return the answer in any order.`,
   /**
    * Render problem panel
    */
-  const renderProblemPanel = () => (
+const renderProblemPanel = () => {
+  // show loading until we find problem
+  if (!problem) {
+    return (
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 h-full flex items-center justify-center">
+        <p className="text-gray-400 text-center">Waiting for problem…</p>
+      </div>
+    );
+  }
+
+  // once we get it, we renderize it
+  return (
     <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 h-full overflow-y-auto">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -528,7 +523,7 @@ You can return the answer in any order.`,
         <p className="text-gray-300 mb-6 leading-relaxed">{problem.description}</p>
         
         <div className="space-y-4">
-          {problem.examples.map((example, index) => (
+          {problem.examples?.map((example, index) => (
             <div key={index} className="bg-gray-900/50 rounded-lg p-4">
               <div className="text-sm font-semibold text-blue-400 mb-2">Example {index + 1}:</div>
               <div className="font-mono text-sm space-y-1">
@@ -544,15 +539,16 @@ You can return the answer in any order.`,
 
         <div className="mt-6">
           <div className="text-sm font-semibold text-gray-400 mb-2">Constraints:</div>
-          <ul className="text-sm text-gray-300 space-y-1">
-            {problem.constraints.map((constraint, index) => (
-              <li key={index} className="font-mono">• {constraint}</li>
-            ))}
-          </ul>
+          <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
+            {problem.constraints?.map((constraint, index) => (
+              <li key={index} className="font-mono">{constraint}</li>
+              ))}
+              </ul>
+            </div>
         </div>
       </div>
-    </div>
   );
+};
 
   /**
    * Render code editor panel
@@ -619,31 +615,33 @@ You can return the answer in any order.`,
         />
       </div>
 
-      {/* Test Results */}
-      {testResults.length > 0 && (
-        <div className="mt-4 bg-gray-900/50 rounded-lg p-4">
-          <div className="text-sm font-semibold text-white mb-3">Test Results:</div>
-          <div className="space-y-2">
-            {testResults.map((result) => (
-              <div key={result.id} className="flex items-center gap-3 text-sm">
-                {result.passed ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-red-400" />
-                )}
-                <span className="text-gray-300">
-                  Test {result.id}: {result.input}
-                </span>
-                {!result.passed && (
-                  <span className="text-red-400">
-                    Expected {result.expected}, got {result.actual}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+{/* Test Results */}
+{testResults.length > 0 && (
+  <div className="mt-4 bg-gray-900/50 rounded-lg p-4">
+    <div className="text-sm font-semibold text-white mb-3">Test Results:</div>
+    <div className="space-y-2">
+      {testResults.map(r => (
+        <div key={r.id} className="flex items-center gap-3 text-sm">
+          {r.passed ? (
+            <CheckCircle className="w-4 h-4 text-green-400" />
+          ) : (
+            <XCircle className="w-4 h-4 text-red-400" />
+          )}
+          {/* Aquí mostramos la línea completa del servidor */}
+          <span className="text-gray-300">{r.text}</span>
         </div>
-      )}
+      ))}
+    </div>
+    {/* Resumen igual al estilo que prefieres */}
+    <div className="mt-4 text-gray-300 text-sm">
+      Result: {testResults.filter(r => r.passed).length}/{testResults.length} tests passed.{" "}
+      {testResults.every(r => r.passed)
+        ? <span className="text-green-400">All passed 🎉</span>
+        : <span className="text-red-400">Some failed ✗</span>}
+    </div>
+  </div>
+)}
+
     </div>
   );
 

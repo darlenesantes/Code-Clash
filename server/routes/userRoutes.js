@@ -106,4 +106,64 @@ router.put('/update-stats', async (req, res) => {
     }
 });
 
+// route to update user coins and rank after a game ends
+/**
+ * This route updates the user's coins and rank based on the game result.
+ * input: { googleId: string, isWin: boolean }
+ * isWin is true if the user won the game, false if they lost.
+ * googleId is the user's unique identifier
+ * The rank is determined based on the user's coins
+ * result is json containing the user google ID, coins, and rank
+ */
+router.put('/update-coins-rank', async (req, res) => {
+    const { googleId, isWin } = req.body; // result can be 'true', 'false', draws can be treated as a loss
+    
+    if (!googleId || typeof isWin !== 'boolean') {
+        return res.status(400).json({ error: 'Invalid request data' });
+    }
+
+    try {
+        const user = await User.findOne({ where: { googleId } });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // update coins:
+        const coinsChange = isWin ? 100 : -50; // win gives 100 coins, loss deducts 50 coins
+        const newCoins = Math.max(0, user.coins + coinsChange); // ensure coins don't go below 0
+        user.coins = newCoins;
+
+        // update rank based on coins
+        let rank;
+        const c = newCoins;
+        if (c >= 1350) rank = 'Legend';
+        else if (c >= 1200) rank = 'Gold 3';
+        else if (c >= 1050) rank = 'Gold 2';
+        else if (c >= 900) rank = 'Gold 1';
+        else if (c >= 750) rank = 'Silver 3';
+        else if (c >= 600) rank = 'Silver 2';
+        else if (c >= 450) rank = 'Silver 1';
+        else if (c >= 300) rank = 'Bronze 3';
+        else if (c >= 150) rank = 'Bronze 2';
+        else rank = 'Bronze 1';
+
+        user.rank = rank;
+
+        // save and respond
+        await user.save();
+        res.json({
+            message: 'User coins and rank updated successfully',
+            user: {
+                googleId: user.googleId,
+                coins: user.coins,
+                rank: user.rank
+            }
+        });
+    } catch (error) {
+        console.error('Error updating user coins and rank:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Export the router
 module.exports = router;

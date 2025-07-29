@@ -8,6 +8,7 @@ import authService from './services/api/authService'; // FIXED: Capital S
 import './styles/global.css';
 import GameRoom from './pages/GameRoom';
 import MatchLobby from './pages/MatchLobby';
+import TestRoomPage from "./pages/TestRoomPage";
 import { AlignVerticalDistributeStartIcon } from 'lucide-react';
 
 // Create context FIRST
@@ -17,6 +18,7 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [roomData, setRoomData]   = useState(null);
 
   // Initialize app with proper auth service
   useEffect(() => {
@@ -57,8 +59,11 @@ const App = () => {
   }, []);
 
   // Navigation function
-  const navigate = (page) => {
-    console.log('Navigating to:', page);
+  const navigate = (page,payload) => {
+    console.log('Navigating to:', page, payload);
+    if (page === 'game-room') {
+      setRoomData(payload);
+    }
     setCurrentPage(page);
   };
 
@@ -122,7 +127,9 @@ const App = () => {
     navigate,
     handleLogin,
     handleLogout,
-    currentPage
+    currentPage,
+    roomData,
+    setRoomData
   };
 
   // Page routing
@@ -179,7 +186,7 @@ const App = () => {
           <GameRoom 
             navigate={navigate} 
             user={user}
-            roomData={null}
+            roomData={roomData}
           />
         );  
 
@@ -189,6 +196,14 @@ const App = () => {
             navigate={navigate} 
             user={user}
             mode="quick"
+          />
+        );
+      
+      case 'test-room':
+        return (
+          <TestRoomPage
+            navigate={navigate}
+            user={user}
           />
         );
       

@@ -3,6 +3,7 @@ const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
+const matchSocketHandler = require("./sockets/matchSocket"); 
 require('dotenv').config();
 
 
@@ -55,6 +56,9 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
+
+  matchSocketHandler(socket, io);
+
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.id}`);
   });
