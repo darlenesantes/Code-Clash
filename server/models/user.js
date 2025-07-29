@@ -84,7 +84,7 @@ module.exports = (sequelize) => {
         },
         coins: {
             type: DataTypes.INTEGER,
-            defaultValue: 0 // Initialize coins to 0
+            defaultValue: 100 // Initialize coins to 100
         },
         winStreak: {
             type: DataTypes.INTEGER,

@@ -28,7 +28,7 @@ const Login = ({ navigate, onLogin }) => {
     }
     
     // Call the parent's onLogin function which handles navigation
-    onLogin(user);
+    await onLogin(user);
     
     // Don't navigate here - let App.jsx handle it via onLogin
   };

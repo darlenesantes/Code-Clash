@@ -1,5 +1,6 @@
 const express = require('express');
 const { OAuth2Client } = require('google-auth-library');
+const { User } = require('../models'); // Import User model
 
 const router = express.Router();
 
@@ -154,7 +155,16 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ message: 'Invalid or expired session' });
     }
 
-    res.json({ user: session.user });
+    const { googleId } = session.user;
+    const dbUser = await User.findOne({ where: { googleId } });
+
+    if (!dbUser) {
+      return res.status(404).json({ message: 'User not found in database' });
+    }
+
+    // Optionally update session in memory too
+    session.user = dbUser;
+    res.json({ user: dbUser.toJSON() });
 
   } catch (error) {
     console.error('Get user error:', error);

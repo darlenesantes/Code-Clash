@@ -55,7 +55,7 @@ router.put('/profile', async (req, res) => {
             favoriteLanguages,
             skillLevel,
             goals,
-            setupComplete
+            setupComplete: true
         });
 
         console.log('User profile updated successfully');
