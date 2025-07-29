@@ -7,6 +7,7 @@ import {
 import Avatar from '../components/ui/Avatar';
 import gameSocket from '../sockets/socket';
 
+
 const GameRoom = ({ navigate, user, roomData }) => {
   // Game state
   const [gameState, setGameState] = useState('waiting'); // waiting, active, completed
@@ -17,6 +18,8 @@ const GameRoom = ({ navigate, user, roomData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [gameResult, setGameResult] = useState(null);
+  const [submitTimestamp, setSubmitTimestamp] = useState(null);
+
   
   // Opponent state
   const [opponent, setOpponent] = useState({
@@ -225,11 +228,36 @@ const GameRoom = ({ navigate, user, roomData }) => {
     gameSocket.on('chat_message', handleChatMessage);
     gameSocket.on('error', handleError);
 
+    const onSubmissionResult = ({ output, allPassed, winner }) => {
+  handleSubmissionResult({ output });  // still uses your existing parser
+  setIsSubmitting(false);              // stop the spinner
+  if (allPassed) {
+    setGameState('completed');
+    setGameResult({
+      winner,
+      reason: 'solution_correct',
+      solveTime: Date.now() - submitTimestamp,
+      coinsEarned: 50,
+      xpEarned: 25
+    });
+  }
+};
+
+gameSocket.on('submission_result', onSubmissionResult);
+
+
     // William's direct socket events
-    if (gameSocket.socket) {
-      gameSocket.socket.on('start_game', handleStartGame);
-      gameSocket.socket.on('server_message', handleServerMessage);
-    }
+      const handleSubmissionResult = ({ passed, output }) => {
+        const lines = output.split(/\r?\n/);
+        const results = lines
+          .map(raw => {
+            const m = raw.match(/^(✅|❌)\s*Test\s*(\d+):\s*(.+)$/);
+            return m ? { id: Number(m[2]), passed: m[1] === '✅', text: raw } : null;
+          })
+          .filter(r => r !== null);
+        setTestResults(results);
+        setIsSubmitting(false); // this line is OK to keep here too for fallback
+      };
 
     /**
      * Cleanup function
@@ -250,6 +278,10 @@ const GameRoom = ({ navigate, user, roomData }) => {
       gameSocket.off('game_ended', handleGameEnded);
       gameSocket.off('chat_message', handleChatMessage);
       gameSocket.off('error', handleError);
+      gameSocket.off('submission_result', onSubmissionResult);
+
+
+
 
       // Remove William's direct socket events
       if (gameSocket.socket) {
@@ -359,39 +391,19 @@ const GameRoom = ({ navigate, user, roomData }) => {
    */
   const handleSubmit = async () => {
     if (!code.trim()) return;
-    
+
+    setSubmitTimestamp(Date.now());
     setIsSubmitting(true);
     
     // Send submission via socket
     gameSocket.submitSolution({
+      roomCode: roomData.roomCode,
       code: code.trim(),
       language,
       submissionTime: Date.now()
     });
     
     // Simulate test execution (real implementation would wait for server response)
-    setTimeout(() => {
-      const mockResults = [
-        { id: 1, input: '[2,7,11,15], 9', expected: '[0,1]', actual: '[0,1]', passed: true },
-        { id: 2, input: '[3,2,4], 6', expected: '[1,2]', actual: '[1,2]', passed: true },
-        { id: 3, input: '[3,3], 6', expected: '[0,1]', actual: '[0,1]', passed: true }
-      ];
-      
-      setTestResults(mockResults);
-      setIsSubmitting(false);
-      
-      // If all tests pass, game ends with victory
-      if (mockResults.every(r => r.passed)) {
-        setGameState('completed');
-        setGameResult({ 
-          winner: user.id, 
-          reason: 'solution_correct',
-          solveTime: 600 - timeLeft,
-          coinsEarned: 50,
-          xpEarned: 25
-        });
-      }
-    }, 2000);
   };
 
   /**
@@ -584,31 +596,33 @@ const renderProblemPanel = () => {
         />
       </div>
 
-      {/* Test Results */}
-      {testResults.length > 0 && (
-        <div className="mt-4 bg-gray-900/50 rounded-lg p-4">
-          <div className="text-sm font-semibold text-white mb-3">Test Results:</div>
-          <div className="space-y-2">
-            {testResults.map((result) => (
-              <div key={result.id} className="flex items-center gap-3 text-sm">
-                {result.passed ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-red-400" />
-                )}
-                <span className="text-gray-300">
-                  Test {result.id}: {result.input}
-                </span>
-                {!result.passed && (
-                  <span className="text-red-400">
-                    Expected {result.expected}, got {result.actual}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+{/* Test Results */}
+{testResults.length > 0 && (
+  <div className="mt-4 bg-gray-900/50 rounded-lg p-4">
+    <div className="text-sm font-semibold text-white mb-3">Test Results:</div>
+    <div className="space-y-2">
+      {testResults.map(r => (
+        <div key={r.id} className="flex items-center gap-3 text-sm">
+          {r.passed ? (
+            <CheckCircle className="w-4 h-4 text-green-400" />
+          ) : (
+            <XCircle className="w-4 h-4 text-red-400" />
+          )}
+          {/* Aquí mostramos la línea completa del servidor */}
+          <span className="text-gray-300">{r.text}</span>
         </div>
-      )}
+      ))}
+    </div>
+    {/* Resumen igual al estilo que prefieres */}
+    <div className="mt-4 text-gray-300 text-sm">
+      Result: {testResults.filter(r => r.passed).length}/{testResults.length} tests passed.{" "}
+      {testResults.every(r => r.passed)
+        ? <span className="text-green-400">All passed 🎉</span>
+        : <span className="text-red-400">Some failed ✗</span>}
+    </div>
+  </div>
+)}
+
     </div>
   );
 

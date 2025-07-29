@@ -121,15 +121,17 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
 
     const handleRoomJoined = (data) => {
       console.log('Room joined:', data);
+      setRoomCode(data.roomCode); 
       setSuccess('Room joined! Waiting for opponent...');
       
     };
 
-    const handleStartGame = (gameData) => {
-      console.log('🔥 [MatchLobby] start_game received:', gameData);
+    const handleStartGame = ({ roomCode: rc, problem, timeLimit }) => {
+      console.log('🔥 [MatchLobby] start_game received:', { rc, problem, timeLimit });
       navigate('game-room', {
-        roomCode,
-        ...gameData
+        roomCode: rc,
+        problem,
+        timeLimit: timeLimit || 600
         });
     };
 

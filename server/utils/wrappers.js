@@ -1,43 +1,85 @@
 function _buildArrayWrapper(userCode, testCases) {
-  const testRunner = `
-function arraysEqual(a, b) {
-  return Array.isArray(a) && Array.isArray(b) &&
-    a.length === b.length &&
-    a.every((val, index) => val === b[index]);
-}
+  // 1. gets name and number of params
+  const match    = userCode.match(/function\s+([^(]+)\s*\(([^)]*)\)/);
+  const fnName   = match ? match[1] : "solutionFunc";
+  const params   = match[2]
+                      .split(',')
+                      .map(p => p.trim())
+                      .filter(p => p);
 
+  // 2. decide runner based on params
+  let testRunner;
+  if (params.length === 1) {
+    // just a param
+    testRunner = `
 function runTests() {
-  const input = require('fs').readFileSync('/dev/stdin', 'utf8');
-  const lines = input.trim().split('\\n\\n');
-  lines.forEach((block, index) => {
-    const [numsLine, targetLine, ...expectedLines] = block.trim().split('\\n');
-    const nums = JSON.parse(numsLine);
-    const target = JSON.parse(targetLine);
-    const expectedList = expectedLines.map(line => JSON.parse(line));
-    let result, passed = false;
-
+  const input = require('fs').readFileSync('/dev/stdin','utf8').trim();
+  const blocks = input.split('\\n\\n');
+  blocks.forEach((block, idx) => {
+    const [inp, ...expLines] = block.split('\\n');
+    let result;
     try {
-      result = twoSum(nums, target);
-      passed = expectedList.some(expected => arraysEqual(result, expected));
+      const arg = JSON.parse(inp);
+      result = ${fnName}(arg);
     } catch (e) {
-      console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
+      console.log(\`❌ Test \${idx+1}: Error - \${e.message}\`);
       return;
     }
-
-    if (passed) {
-      console.log(\`✅ Test \${index + 1}: Passed\`);
+    const expected = expLines.map(l => JSON.parse(l));
+    if (expected.includes(result)) {
+      console.log(\`✅ Test \${idx+1}: Passed\`);
     } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n   Input: \${numsLine}, \${targetLine}\\n   Expected: \${JSON.stringify(expectedList)}\\n   Got: \${JSON.stringify(result)}\`);
+      console.log(\`❌ Test \${idx+1}: Failed\\n  Input: \${inp}\\n  Expected: \${JSON.stringify(expected)}\\n  Got: \${JSON.stringify(result)}\`);
     }
   });
 }
-
 runTests();
 `;
+  } else {
+    // two params (ej. twoSum(nums, target))
+    testRunner = `
+function arraysEqual(a, b) {
+  return Array.isArray(a) && a.length === b.length && a.every((v,i) => v === b[i]);
+}
+function runTests() {
+  const input = require('fs').readFileSync('/dev/stdin','utf8').trim();
+  const blocks = input.split('\\n\\n');
+  blocks.forEach((block, idx) => {
+    const [aLine, bLine, ...expLines] = block.split('\\n');
+    const arg1 = JSON.parse(aLine), arg2 = JSON.parse(bLine);
+    const expected = expLines.map(l => JSON.parse(l));
+    let res, passed=false;
+    try {
+      res = ${fnName}(arg1, arg2);
+      passed = expected.some(e => arraysEqual(res, e));
+    } catch(e) {
+      console.log(\`❌ Test \${idx+1}: Error - \${e.message}\`);
+      return;
+    }
+    if (passed) {
+      console.log(\`✅ Test \${idx+1}: Passed\`);
+    } else {
+      console.log(\`❌ Test \${idx+1}: Failed\\n  Input: \${aLine}, \${bLine}\\n  Expected: \${JSON.stringify(expected)}\\n  Got: \${JSON.stringify(res)}\`);
+    }
+  });
+}
+runTests();
+`;
+  }
+
+  // 3. returns whole code
   return `${userCode}\n${testRunner}`;
 }
 
+
 function _buildLinkedListWrapper(userCode, testCases) {
+  // 1. Extract the user’s function name dynamically
+  const match = userCode.match(/function\s+([^(]+)\s*\(/);
+  const fnName = match ? match[1] : "addTwoNumbers";
+
+  // 2. Build the test runner that transforms input arrays into linked lists,
+  //    invokes the user’s function, converts the result back to an array,
+  //    and compares it against expected output
   const testRunner = `
 class ListNode {
   constructor(val = 0, next = null) {
@@ -66,46 +108,50 @@ function linkedListToArray(head) {
 }
 
 function arraysEqual(a, b) {
-  return Array.isArray(a) && Array.isArray(b) &&
-    a.length === b.length &&
-    a.every((val, index) => val === b[index]);
+  return Array.isArray(a) && a.length === b.length && a.every((v,i) => v === b[i]);
 }
 
 function runTests() {
-  const input = require('fs').readFileSync('/dev/stdin', 'utf8');
-  const blocks = input.trim().split('\\n\\n');
-
-  blocks.forEach((block, index) => {
-    const [inputLine, expectedLine] = block.trim().split('\\n');
-    const inputArr = JSON.parse(inputLine);
-    const expected = JSON.parse(expectedLine);
-
-    let resultArr = [];
+  const input = require('fs').readFileSync('/dev/stdin','utf8').trim();
+  const blocks = input.split('\\n\\n');
+  blocks.forEach((block, idx) => {
+    const [l1Line, l2Line, expectedLine] = block.split('\\n');
+    let arr1, arr2, expected, resultArr;
     try {
-      const l1 = arrayToLinkedList(inputArr[0]);
-      const l2 = arrayToLinkedList(inputArr[1]);
-      const result = addTwoNumbers(l1, l2);
-      resultArr = linkedListToArray(result);
+      arr1 = JSON.parse(l1Line);
+      arr2 = JSON.parse(l2Line);
+      expected = JSON.parse(expectedLine);
+      const l1 = arrayToLinkedList(arr1);
+      const l2 = arrayToLinkedList(arr2);
+      const res = ${fnName}(l1, l2);
+      resultArr = linkedListToArray(res);
     } catch (e) {
-      console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
+      console.log(\`❌ Test \${idx+1}: Error - \${e.message}\`);
       return;
     }
-
-    const passed = arraysEqual(resultArr, expected);
-    if (passed) {
-      console.log(\`✅ Test \${index + 1}: Passed\`);
+    if (arraysEqual(resultArr, expected)) {
+      console.log(\`✅ Test \${idx+1}: Passed\`);
     } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${JSON.stringify(inputArr)}\\n  Expected: \${JSON.stringify(expected)}\\n  Got: \${JSON.stringify(resultArr)}\`);
+      console.log(\`❌ Test \${idx+1}: Failed\\n  Input: \${l1Line}, \${l2Line}\\n  Expected: \${JSON.stringify(expected)}\\n  Got: \${JSON.stringify(resultArr)}\`);
     }
   });
 }
-
 runTests();
 `;
+
+  // 3. Return the combined user code plus test runner
   return `${userCode}\n${testRunner}`;
 }
 
 function _buildBinaryTreeWrapper(userCode, testCases) {
+  // 1. Extract the user’s function name dynamically
+  const match = userCode.match(/function\s+([^(]+)\s*\(/);
+  const fnName = match ? match[1] : "inorderTraversal";
+
+  // 2. Build the test runner that:
+  //    a) Parses the input array into a binary tree
+  //    b) Calls the user’s function on the tree
+  //    c) Compares the returned array against expected results
   const testRunner = `
 class TreeNode {
   constructor(val, left = null, right = null) {
@@ -137,83 +183,79 @@ function arrayToBinaryTree(arr) {
 }
 
 function arraysEqual(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
+  return Array.isArray(a) && a.length === b.length && a.every((v,i) => v === b[i]);
 }
 
 function runTests() {
-  const input = require('fs').readFileSync('/dev/stdin', 'utf8');
-  const blocks = input.trim().split('\\n\\n');
-
-  blocks.forEach((block, index) => {
-    const [inputLine, ...expectedLines] = block.trim().split('\\n');
-    const inputArr = JSON.parse(inputLine);
-    const expectedList = expectedLines
-        .map(line => {
-            try {
-            return JSON.parse(line);
-            } catch {
-            return undefined;
-            }
-        })
-        .filter(e => e !== undefined);
-
-    let resultArr = [];
+  const input = require('fs').readFileSync('/dev/stdin','utf8').trim();
+  const blocks = input.split('\\n\\n');
+  blocks.forEach((block, idx) => {
+    const lines = block.split('\\n');
+    let treeArr, expectedList, resultArr;
     try {
-      const root = arrayToBinaryTree(inputArr);
-      const result = inorderTraversal(root);
-      resultArr = Array.isArray(result) ? result : [];
+      treeArr = JSON.parse(lines[0]);
+      expectedList = lines.slice(1).map(l => JSON.parse(l));
+      const root = arrayToBinaryTree(treeArr);
+      const res = ${fnName}(root);
+      resultArr = Array.isArray(res) ? res : [];
     } catch (e) {
-      console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
+      console.log(\`❌ Test \${idx+1}: Error - \${e.message}\`);
       return;
     }
-
-    const passed = expectedList.some(expected => JSON.stringify(resultArr) === JSON.stringify(expected));
-    if (passed) {
-      console.log(\`✅ Test \${index + 1}: Passed\`);
+    if (expectedList.some(exp => arraysEqual(resultArr, exp))) {
+      console.log(\`✅ Test \${idx+1}: Passed\`);
     } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${inputLine}\\n  Expected: \${JSON.stringify(expectedList)}\\n  Got: \${JSON.stringify(resultArr)}\`);
+      console.log(\`❌ Test \${idx+1}: Failed\\n  Input: \${JSON.stringify(treeArr)}\\n  Expected: \${JSON.stringify(expectedList)}\\n  Got: \${JSON.stringify(resultArr)}\`);
     }
   });
 }
-
 runTests();
 `;
+
+  // 3. Return user code plus test runner
   return `${userCode}\n${testRunner}`;
 }
+
 
 function _buildGraphWrapper(userCode, testCases) {
+  // 1. Dynamically extract the user’s function name
+  const match = userCode.match(/function\s+([^(]+)\s*\(/);
+  const fnName = match ? match[1] : "countComponents";
+
+  // 2. Build a test runner that:
+  //    a) Reads n and edges from stdin
+  //    b) Calls the user’s function with those arguments
+  //    c) Compares the returned number against each expected output
   const testRunner = `
 function runTests() {
-  const input = require('fs').readFileSync('/dev/stdin', 'utf8');
-  const blocks = input.trim().split('\\n\\n');
-
-  blocks.forEach((block, index) => {
-    const [nLine, edgesLine, ...expectedLines] = block.trim().split('\\n');
-    const n = JSON.parse(nLine);
-    const edges = JSON.parse(edgesLine);
-    const expectedList = expectedLines.map(line => JSON.parse(line));
-
-    let result;
+  const input = require('fs').readFileSync('/dev/stdin','utf8').trim();
+  const blocks = input.split('\\n\\n');
+  blocks.forEach((block, idx) => {
+    const [nLine, edgesLine, ...expLines] = block.split('\\n');
+    let n, edges, expectedList, result;
     try {
-      result = countComponents(n, edges); // expects user-defined function
+      n = JSON.parse(nLine);
+      edges = JSON.parse(edgesLine);
+      expectedList = expLines.map(l => JSON.parse(l));
+      result = ${fnName}(n, edges);
     } catch (e) {
-      console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
+      console.log(\`❌ Test \${idx+1}: Error - \${e.message}\`);
       return;
     }
-
-    const passed = expectedList.some(expected => result === expected);
-    if (passed) {
-      console.log(\`✅ Test \${index + 1}: Passed\`);
+    if (expectedList.includes(result)) {
+      console.log(\`✅ Test \${idx+1}: Passed\`);
     } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${nLine}, \${edgesLine}\\n  Expected: \${JSON.stringify(expectedList)}\\n  Got: \${result}\`);
+      console.log(\`❌ Test \${idx+1}: Failed\\n  Input: n=\${n}, edges=\${JSON.stringify(edges)}\\n  Expected: \${JSON.stringify(expectedList)}\\n  Got: \${result}\`);
     }
   });
 }
-
 runTests();
 `;
+
+  // 3. Return the combined user code plus the test runner
   return `${userCode}\n${testRunner}`;
 }
+
 
 function buildJsWrappedCode(userCode, testCases, type = "array") {
   switch (type.toLowerCase()) {
@@ -230,16 +272,62 @@ function buildJsWrappedCode(userCode, testCases, type = "array") {
 }
 
 function formatTestCasesAsStdin(testCases, type = "array") {
-    return testCases.map(({ input, expectedOutputs }) => {
-    const [part1, part2] = input.trim().split('\n');
-    const inputLine = type === "linkedlist" ? `[${part1},${part2}]` : `${part1}\n${part2}`;
-    const expectedLines = expectedOutputs.map(out => `${out}`).join('\n');
-    return `${inputLine}\n${expectedLines}`;
-    }).join('\n\n');
+  return testCases
+    .map(({ input, expectedOutputs }) => {
+      const inputLines = input.trim().split('\n');
+      const expectedLines = expectedOutputs || [];
+      return [...inputLines, ...expectedLines].join('\n');
+    })
+    .join('\n\n');
 }
+
+
+function buildPythonWrapper(userCode /* string */, testCases /* array */) {
+  const match  = userCode.match(/def\s+([^(]+)\s*\(/);
+  const fnName = match ? match[1] : "solution";
+
+  return `
+${userCode}
+
+import sys, json
+
+def run_tests():
+    data = sys.stdin.read().strip()
+    if not data:
+        return
+    blocks = data.split("\\n\\n")
+    for idx, block in enumerate(blocks, start=1):
+        lines = block.split("\\n")
+        try:
+            args = [ json.loads(l) for l in lines if l.strip() ]
+            res = ${fnName}(*args)
+            output = json.dumps(res)
+
+            expected = [ json.loads(l) for l in lines[len(args):] ]
+            passed = output in [ json.dumps(e) for e in expected ]
+
+            if passed:
+                print(f"✅ Test {idx}: Passed")
+            else:
+                print(f"❌ Test {idx}: Failed")
+                print(f"  Input: {' | '.join(lines[:len(args)])}")
+                print(f"  Expected: {expected}")
+                print(f"  Got: {output}")
+        except Exception as e:
+            print(f"❌ Test {idx}: Error")
+            print(f"  Input: {' | '.join(lines[:len(args)])}")
+            print(f"  Error: {e}")
+
+if __name__ == "__main__":
+    run_tests()
+`;
+}
+
+
 
 
 module.exports = {
   buildJsWrappedCode,
-  formatTestCasesAsStdin
+  formatTestCasesAsStdin,
+  buildPythonWrapper
 };
