@@ -8,6 +8,7 @@ import authService from './services/api/authService'; // FIXED: Capital S
 import './styles/global.css';
 import GameRoom from './pages/GameRoom';
 import MatchLobby from './pages/MatchLobby';
+import { AlignVerticalDistributeStartIcon } from 'lucide-react';
 
 // Create context FIRST
 export const AppContext = React.createContext();
@@ -25,13 +26,15 @@ const App = () => {
         
         // Use proper auth service
         const authResult = await authService.initialize();
-        
+        //console.log('authResult.user in App.jsx:', authResult.user);
+
         if (authResult.authenticated) {
           console.log('User is authenticated:', authResult.user);
           setUser(authResult.user);
           
           // Navigate to proper page based on setup status
           if (!authResult.user.setupComplete) {
+            console.log('user setup status', authResult.user.setupComplete);
             setCurrentPage('profile-setup');
           } else {
             setCurrentPage('dashboard');
@@ -60,17 +63,27 @@ const App = () => {
   };
 
   // Enhanced login function
-  const handleLogin = (userData) => {
+  const handleLogin = async (userData) => {
     console.log('Login successful in App.jsx:', userData);
-    setUser(userData);
-    
-    // Navigate based on setup completion
-    if (!userData.setupComplete) {
-      console.log('User needs setup, navigating to profile-setup');
-      navigate('profile-setup');
+    setUser(userData); // temporary, need to get database user info
+
+    const result = await authService.getCurrentUserFromServer();
+    if (result.success) {
+      const dbUser = result.user;
+      console.log('Database user fetched:', dbUser);
+      setUser(dbUser);
+
+      // Navigate based on setup completion
+      if (!dbUser.setupComplete) {
+        console.log('User needs setup, navigating to profile-setup');
+        navigate('profile-setup');
+      } else {
+        console.log('user setup complete, navigating to dashboard');
+        navigate('dashboard');
+      }
     } else {
-      console.log('User setup complete, navigating to dashboard');
-      navigate('dashboard');
+      console.error('Failed to fetch user from server:', result.error);
+      navigate('landing');
     }
   };
 

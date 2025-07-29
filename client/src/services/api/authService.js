@@ -77,18 +77,23 @@ class AuthService {
   // Update profile
   async updateProfile(profileData) {
     try {
-      const response = await api.put('/api/auth/profile', profileData);
-      const { user } = response.data;
+      const user = this.getCurrentUser();
+      if (!user) {
+        throw new Error('User not found');
+      }
+        const response = await api.put('/api/user/profile', {
+          ...profileData,
+          googleId: user.googleId,
+        });
 
-      // Update stored user data
-      localStorage.setItem('codeclash_user', JSON.stringify(user));
-
-      return { success: true, user };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Profile update failed'
-      };
+        const {user: updatedUser} = response.data;
+        localStorage.setItem('codeclash_user', JSON.stringify(updatedUser));
+        return { success: true, user: updatedUser };
+      } catch (error) {
+        return {
+          success: false,
+          error: error.response?.data?.message || 'Failed to update profile'
+        };
     }
   }
 
