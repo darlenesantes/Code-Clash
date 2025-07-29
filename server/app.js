@@ -17,7 +17,9 @@ const server = http.createServer(app);
 
 // CORS
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin: process.env.NODE_ENV === 'production' ?
+  "https://code-clash-tan.vercel.app/" :
+  "http://localhost:3000",
   credentials: true
 }));
 
@@ -47,7 +49,9 @@ app.use((error, req, res, next) => {
 
 // Socket.IO
 const io = new Server(server, {
-  cors: { origin: "http://localhost:3000" }
+  cors: { origin: process.env.NODE_ENV === 'production' ?
+  "https://code-clash-tan.vercel.app/" :
+  "http://localhost:3000" }
 });
 
 io.on("connection", (socket) => {
