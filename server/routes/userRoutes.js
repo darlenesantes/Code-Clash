@@ -19,11 +19,11 @@ const { findOrCreateUser, updateUserPreferences, updateMatchStats, getUserStats 
 
 // Route to handle Google OAuth login
 router.post('/auth/google', async (req, res) => {
-  const { googleId } = req.body;
+  const { googleId, name } = req.body;
   console.log("Received Google ID:", googleId);
 
   try {
-    const user = await findOrCreateUser(googleId);
+    const user = await findOrCreateUser(googleId, name);
     res.json(user);
   } catch (err) {
     console.error("🔥 Error in /auth/google:", err);

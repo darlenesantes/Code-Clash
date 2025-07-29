@@ -13,7 +13,7 @@ const { User } = require('../models');
 
 // Function to find or create a user based on Google ID
 // Here we use async to handle asynchronous DB operations
-async function findOrCreateUser(googleId) {
+async function findOrCreateUser(googleId, googleName) {
     // first, check if the user already exists
     try {
         const existingUser = await User.findOne({ where: { googleId: googleId } });
@@ -24,7 +24,10 @@ async function findOrCreateUser(googleId) {
         }
         // if user does not exist, create a new user
         console.log('User not found, creating new user');
-        const newUser = await User.create({ googleId: googleId });
+        const newUser = await User.create({ 
+            googleId: googleId,
+            displayName: googleName
+        });
         console.log('New user created');
         return newUser;
     
