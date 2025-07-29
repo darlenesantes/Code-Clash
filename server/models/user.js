@@ -37,7 +37,7 @@ module.exports = (sequelize) => {
         displayName: {
             type: DataTypes.STRING, // Each user will input their display name in profile setup
             allowNull: true, // Display name will be null when the user first signs up, to be filled in profile setup
-            unique: true // Each display name must be unique
+            unique: false // multiple users can have the same display name
         },
         favoriteLanguages: {
             type: DataTypes.ARRAY(DataTypes.STRING), // Each user will select their preferred coding language in profile setup

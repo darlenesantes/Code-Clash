@@ -17,6 +17,7 @@ const GameRoom = ({ navigate, user, roomData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [gameResult, setGameResult] = useState(null);
+  const [matchStartTime, setMatchStartTime] = useState(null);
   
   // Opponent state
   const [opponent, setOpponent] = useState({
@@ -138,7 +139,19 @@ You can return the answer in any order.`,
       if (data.problem) {
         setProblem(data.problem);
       }
-      setTimeLeft(data.timeLimit || 600);
+      // setting the time
+      const totalGameTime = 600; // 10 minutes
+
+      if (data.startTime) {
+        setMatchStartTime(data.startTime);
+
+        const now = Date.now();
+        const elapsed = Math.floor((now - data.startTime) / 1000);
+        const remainingTime = Math.max(totalGameTime - elapsed, 0);
+        setTimeLeft(remainingTime);
+      } else {
+        setTimeLeft(totalGameTime);
+      }
       setChatMessages([{ 
         id: Date.now(), 
         sender: 'system', 
@@ -311,21 +324,28 @@ You can return the answer in any order.`,
    * Timer effect - handles countdown
    */
   useEffect(() => {
-    if (gameState === 'active' && timeLeft > 0) {
+    if (gameState === 'active' && matchStartTime) {
+      const totalGameTime = 600; // 10 minutes
+
       const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            // Time's up!
-            setGameState('completed');
-            setGameResult({ winner: null, reason: 'timeout' });
-            return 0;
-          }
-          return prev - 1;
-        });
+        const now = Date.now();
+        const elapsed = Math.floor((now - matchStartTime) / 1000);
+        const remainingTime = Math.max(totalGameTime - elapsed, 0);
+        
+        setTimeLeft(remainingTime);
+
+
+        if (remainingTime === 0) {
+          // Time's up!
+          clearInterval(timer);
+          setGameState('completed');
+          setGameResult({ winner: null, reason: 'timeout' });
+        }
       }, 1000);
+
       return () => clearInterval(timer);
     }
-  }, [gameState, timeLeft]);
+  }, [gameState, matchStartTime]);
 
   /**
    * Initialize code when language changes

@@ -58,10 +58,14 @@ function matchSocketHandler(socket, io) {
             const problem = problems.find(p => p.id === 2); // Pick any for now — maybe random later
             if (!problem) return;
 
-            matchData[matchCode] = { problem };
+            // add match start time
+            const startTime = Date.now(); // this is the shared start time
+
+            matchData[matchCode] = { problem, startTime };
 
             io.to(matchCode).emit("start_game", {
-                problem: problem.description
+                problem: problem.description,
+                startTime
             });
             }
     });
