@@ -15,11 +15,15 @@ const gameRoutes = require("./routes/gameRoutes");
 const app = express();
 const server = http.createServer(app);
 
+const allowedOrigins = [
+  'https://code-clash-tan.vercel.app/',
+  'https://code-clash-89bb.onrender.com',
+  'http://localhost:3000'
+];
+
 // CORS
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ?
-  "https://code-clash-tan.vercel.app/" :
-  "http://localhost:3000",
+  origin: allowedOrigins,
   credentials: true
 }));
 
