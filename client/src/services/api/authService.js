@@ -53,13 +53,19 @@ class AuthService {
     localStorage.removeItem('codeclash_user');
   }
 
-  // Google OAuth ONLY
+  // FIXED: Google OAuth method that matches your backend
   async googleAuth(googleToken) {
     try {
+      console.log('AuthService: Sending Google token to backend...');
+      console.log('Token:', googleToken);
+      console.log('API URL:', API_BASE);
+
       const response = await api.post('/api/auth/google', {
-        token: googleToken
+        token: googleToken  // Your backend expects { token }
       });
-      
+
+      console.log('AuthService: Backend response:', response.data);
+
       const { user, sessionId } = response.data;
 
       // Store session
@@ -67,9 +73,28 @@ class AuthService {
 
       return { success: true, user };
     } catch (error) {
+      console.error('AuthService: Google auth error:', error);
+      
+      // Better error handling
+      let errorMessage = 'Google authentication failed';
+      
+      if (error.response) {
+        // Server responded with error
+        console.error('Response error:', error.response.data);
+        errorMessage = error.response.data?.message || errorMessage;
+      } else if (error.request) {
+        // Network error
+        console.error('Network error:', error.request);
+        errorMessage = 'Network error. Please check your connection.';
+      } else {
+        // Other error
+        console.error('Auth error:', error.message);
+        errorMessage = error.message;
+      }
+
       return {
         success: false,
-        error: error.response?.data?.message || 'Google authentication failed'
+        error: errorMessage
       };
     }
   }

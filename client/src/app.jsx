@@ -4,33 +4,30 @@ import Login from './pages/Login';
 import ProfileSetup from './pages/ProfileSetup';
 import LeaderboardPage from './pages/LeaderboardPage';
 import GameDashboard from './pages/GameDashboard';
-import authService from './services/api/authService'; // FIXED: Capital S
-import './styles/global.css';
-import GameRoom from './pages/GameRoom';
+import EnhancedGameRoom from './pages/GameRoom'; 
 import MatchLobby from './pages/MatchLobby';
+import authService from './services/api/authService';
+import './styles/global.css';
 
-// Create context FIRST
 export const AppContext = React.createContext();
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [roomData, setRoomData] = useState(null); // Store room data for navigation
 
-  // Initialize app with proper auth service
   useEffect(() => {
     const initializeApp = async () => {
       try {
         console.log('Initializing CodeClash app...');
         
-        // Use proper auth service
         const authResult = await authService.initialize();
         
         if (authResult.authenticated) {
           console.log('User is authenticated:', authResult.user);
           setUser(authResult.user);
           
-          // Navigate to proper page based on setup status
           if (!authResult.user.setupComplete) {
             setCurrentPage('profile-setup');
           } else {
@@ -53,9 +50,14 @@ const App = () => {
     initializeApp();
   }, []);
 
-  // Navigation function
-  const navigate = (page) => {
-    console.log('Navigating to:', page);
+  // Enhanced navigation function
+  const navigate = (page, data = null) => {
+    console.log('Navigating to:', page, 'with data:', data);
+    
+    if (page === 'game-room' && data) {
+      setRoomData(data);
+    }
+    
     setCurrentPage(page);
   };
 
@@ -64,7 +66,6 @@ const App = () => {
     console.log('Login successful in App.jsx:', userData);
     setUser(userData);
     
-    // Navigate based on setup completion
     if (!userData.setupComplete) {
       console.log('User needs setup, navigating to profile-setup');
       navigate('profile-setup');
@@ -80,12 +81,14 @@ const App = () => {
       console.log('Logging out...');
       await authService.logout();
       setUser(null);
+      setRoomData(null);
       navigate('landing');
       console.log('Logout successful');
     } catch (error) {
       console.error('Logout error:', error);
       authService.clearSession();
       setUser(null);
+      setRoomData(null);
       navigate('landing');
     }
   };
@@ -100,16 +103,18 @@ const App = () => {
         </div>
       </div>
     );
-  };
+  }
 
-  // App context for sharing state
+  // App context
   const appContext = {
     user,
     setUser,
     navigate,
     handleLogin,
     handleLogout,
-    currentPage
+    currentPage,
+    roomData,
+    setRoomData
   };
 
   // Page routing
@@ -163,10 +168,10 @@ const App = () => {
 
       case 'game-room':
         return (
-          <GameRoom 
+          <EnhancedGameRoom 
             navigate={navigate} 
             user={user}
-            roomData={null}
+            roomData={roomData}
           />
         );  
 

@@ -1,52 +1,57 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  ArrowLeft, Play, Send, Flag, Clock, User, 
+  ArrowLeft, Play, Send, Clock, User, 
   CheckCircle, XCircle, Code, MessageCircle,
-  Trophy, Target, Zap, Wifi, WifiOff
+  Trophy, Target, Zap, Settings, Copy, 
+  RotateCcw, Download, Users, Crown,
+  Wifi, WifiOff, Swords
 } from 'lucide-react';
-import Avatar from '../components/ui/Avatar';
-import gameSocket from '../sockets/socket';
 
-const GameRoom = ({ navigate, user, roomData }) => {
+import Avatar from '../components/ui/Avatar';
+import VictoryPopup from '../components/VictoryPopup';
+
+const GameRoom = ({ 
+  navigate, 
+  user, 
+  roomCode, 
+  difficulty = 'Easy',
+  problem = null 
+}) => {
   // Game state
-  const [gameState, setGameState] = useState('waiting'); // waiting, active, completed
-  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+  const [gameStarted, setGameStarted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 minutes
+  const [opponent, setOpponent] = useState(null);
+  const [showReady, setShowReady] = useState(false);
+  const [readyCountdown, setReadyCountdown] = useState(5);
+  const [isReady, setIsReady] = useState(false);
+  const [opponentReady, setOpponentReady] = useState(false);
+  
+  // Victory popup states
+  const [showVictoryPopup, setShowVictoryPopup] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [isFirstWin, setIsFirstWin] = useState(false);
+
+  // Code editor state
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('javascript');
-  const [testResults, setTestResults] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [gameResult, setGameResult] = useState(null);
-  
-  // Opponent state
-  const [opponent, setOpponent] = useState({
-    username: 'Waiting for opponent...',
-    avatar: { theme: 'coder', color: 'gray' },
-    progress: 0,
-    isTyping: false,
-    lastSeen: 'offline',
-    linesOfCode: 0,
-    isConnected: false
-  });
-  
-  // Chat state
-  const [chatMessages, setChatMessages] = useState([]);
+  const [fontSize, setFontSize] = useState(14);
+  const [showLineNumbers, setShowLineNumbers] = useState(true);
+  const [testResults, setTestResults] = useState(null);
+  const [isRunning, setIsRunning] = useState(false);
+
+  // Chat and progress
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  
-  // Refs for cleanup
-  const typingTimeoutRef = useRef(null);
-  const progressTimeoutRef = useRef(null);
-  
-  // Sample problem (will come from server)
-  const [problem, setProblem] = useState({
+  const [opponentProgress, setOpponentProgress] = useState(0);
+  const [opponentTyping, setOpponentTyping] = useState(false);
+  const [myProgress, setMyProgress] = useState(0);
+
+  // Current problem - fallback if none provided
+  const [currentProblem, setCurrentProblem] = useState(problem || {
+    id: 1,
     title: "Two Sum",
     difficulty: "Easy",
-    description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
-
-You can return the answer in any order.`,
+    description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.",
     examples: [
       {
         input: "nums = [2,7,11,15], target = 9",
@@ -55,841 +60,621 @@ You can return the answer in any order.`,
       },
       {
         input: "nums = [3,2,4], target = 6", 
-        output: "[1,2]"
+        output: "[1,2]",
+        explanation: "Because nums[1] + nums[2] == 6, we return [1, 2]."
       }
     ],
-    constraints: [
-      "2 ≤ nums.length ≤ 104",
-      "-109 ≤ nums[i] ≤ 109",
-      "-109 ≤ target ≤ 109"
+    testCases: [
+      { input: [[2,7,11,15], 9], expected: [0,1] },
+      { input: [[3,2,4], 6], expected: [1,2] },
+      { input: [[3,3], 6], expected: [0,1] }
     ]
   });
 
-  // Starter code
-  const starterCode = {
+  const codeRef = useRef(null);
+
+  // Demo opponent data
+  const demoOpponents = [
+    {
+      id: 'demo_001',
+      displayName: 'CodeNinja',
+      picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=CodeNinja',
+      wins: 247,
+      rank: 'Gold II'
+    },
+    {
+      id: 'demo_002', 
+      displayName: 'ByteBeast',
+      picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ByteBeast',
+      wins: 189,
+      rank: 'Silver I'
+    },
+    {
+      id: 'demo_003',
+      displayName: 'AlgoWizard',
+      picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlgoWizard',
+      wins: 312,
+      rank: 'Platinum III'
+    }
+  ];
+
+  // Language templates
+  const languageTemplates = {
     javascript: `function twoSum(nums, target) {
-    // Your code here
+    // Your solution here
     
 }`,
     python: `def two_sum(nums, target):
-    # Your code here
+    # Your solution here
     pass`,
     java: `public int[] twoSum(int[] nums, int target) {
-    // Your code here
-    return new int[2];
+    // Your solution here
+    return new int[0];
+}`,
+    cpp: `vector<int> twoSum(vector<int>& nums, int target) {
+    // Your solution here
+    return {};
 }`
   };
 
-  /**
-   * Initialize socket connection and event handlers
-   */
+  // Add demo opponent after 5 seconds
   useEffect(() => {
-    console.log('=== GAME ROOM INITIALIZATION ===');
-    console.log('User:', user);
-    console.log('Room Data:', roomData);
-    
-    // Connect socket if not already connected
-    if (!gameSocket.isSocketConnected()) {
-      gameSocket.connect(user);
-    }
+    const timer = setTimeout(() => {
+      if (!opponent) {
+        const randomOpponent = demoOpponents[Math.floor(Math.random() * demoOpponents.length)];
+        setOpponent(randomOpponent);
+        
+        // Show ready screen after opponent joins
+        setTimeout(() => {
+          setShowReady(true);
+        }, 1000);
 
-    // Join match if we have roomData with matchCode (William's logic)
-    if (roomData?.matchCode) {
-      console.log('Joining match with code:', roomData.matchCode);
-      gameSocket.socket.emit("join_match", {
-        matchCode: roomData.matchCode, 
-        username: user?.username || 'Anonymous'
-      });
-    }
+        // Add system message
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'system',
+          message: `${randomOpponent.displayName} joined the battle!`,
+          timestamp: new Date().toLocaleTimeString()
+        }]);
 
-    // Join room if we have roomData with roomCode
-    if (roomData?.roomCode) {
-      console.log('Joining room with code:', roomData.roomCode);
-      gameSocket.joinRoom(roomData.roomCode, {
-        id: user?.id,
-        username: user?.username
-      });
-    }
-
-    /**
-     * Socket Event Handlers
-     */
-
-    // Connection status updates
-    const handleConnectionStatus = (data) => {
-      console.log('Connection status update:', data);
-      if (data.status === 'connected') {
-        setConnectionStatus('connected');
-      } else if (data.status === 'disconnected') {
-        setConnectionStatus('disconnected');
+        // Simulate opponent getting ready after 2 seconds
+        setTimeout(() => {
+          setOpponentReady(true);
+        }, 2000);
       }
-    };
+    }, 5000);
 
-    // Match found (from matchmaking)
-    const handleMatchFound = (data) => {
-      console.log('Match found:', data);
-      setGameState('waiting');
-    };
+    return () => clearTimeout(timer);
+  }, [opponent]);
 
-    // William's start_game event
-    const handleStartGame = (data) => {
-      console.log('Game starting with problem:', data);
-      setGameState('active');
-      if (data.problem) {
-        setProblem(data.problem);
-      }
-      setTimeLeft(data.timeLimit || 600);
-      setChatMessages([{ 
-        id: Date.now(), 
-        sender: 'system', 
-        message: 'Battle started! Good luck!',
-        timestamp: Date.now()
-      }]);
-    };
-
-    // Alternative game_started event
-    const handleGameStarted = (data) => {
-      console.log('Game started:', data);
-      setGameState('active');
-      if (data.problem) {
-        setProblem(data.problem);
-      }
-      setTimeLeft(data.timeLimit || 600);
-      setChatMessages([{ 
-        id: Date.now(), 
-        sender: 'system', 
-        message: 'Battle started! Good luck!',
-        timestamp: Date.now()
-      }]);
-    };
-
-    // William's server_message handler
-    const handleServerMessage = (message) => {
-      console.log('Server message:', message);
-      setChatMessages(prev => [...prev, {
-        id: Date.now(),
-        sender: 'system',
-        message: message,
-        timestamp: Date.now()
-      }]);
-    };
-
-    // Opponent events
-    const handleOpponentJoined = (data) => {
-      console.log('Opponent joined:', data);
-      setOpponent(prev => ({
-        ...prev,
-        username: data.username || data.user?.username || 'Opponent',
-        avatar: data.avatar || data.user?.avatar || { theme: 'coder', color: 'red' },
-        isConnected: true
-      }));
-      setConnectionStatus('connected');
-    };
-
-    const handleOpponentLeft = (data) => {
-      console.log('Opponent left:', data);
-      setOpponent(prev => ({
-        ...prev,
-        username: 'Opponent disconnected',
-        isConnected: false,
-        isTyping: false
-      }));
-      setConnectionStatus('opponent_disconnected');
-    };
-
-    const handleOpponentTyping = (data) => {
-      setOpponent(prev => ({ ...prev, isTyping: true, lastSeen: 'typing...' }));
-    };
-
-    const handleOpponentStoppedTyping = (data) => {
-      setOpponent(prev => ({ ...prev, isTyping: false, lastSeen: 'just now' }));
-    };
-
-    const handleOpponentProgress = (data) => {
-      setOpponent(prev => ({
-        ...prev,
-        progress: data.progress || 0,
-        linesOfCode: data.linesOfCode || 0,
-        lastSeen: 'just now'
-      }));
-    };
-
-    const handleOpponentSubmitted = (data) => {
-      console.log('Opponent submitted solution');
-      setOpponent(prev => ({ ...prev, lastSeen: 'submitted solution' }));
-    };
-
-    // Game end events
-    const handleGameEnded = (data) => {
-      console.log('Game ended:', data);
-      setGameState('completed');
-      setGameResult(data);
-    };
-
-    // Chat events
-    const handleChatMessage = (data) => {
-      setChatMessages(prev => [...prev, {
-        id: Date.now(),
-        sender: 'opponent',
-        message: data.message,
-        timestamp: data.timestamp || Date.now()
-      }]);
-    };
-
-    // Error handling
-    const handleError = (data) => {
-      console.error('Game error:', data);
-      setChatMessages(prev => [...prev, {
-        id: Date.now(),
-        sender: 'system',
-        message: `Error: ${data.message || 'Something went wrong'}`,
-        timestamp: Date.now()
-      }]);
-    };
-
-    /**
-     * Register all socket event listeners
-     */
-    
-    // GameSocket class events
-    gameSocket.on('connection_status', handleConnectionStatus);
-    gameSocket.on('match_found', handleMatchFound);
-    gameSocket.on('game_started', handleGameStarted);
-    gameSocket.on('opponent_joined', handleOpponentJoined);
-    gameSocket.on('opponent_left', handleOpponentLeft);
-    gameSocket.on('opponent_typing', handleOpponentTyping);
-    gameSocket.on('opponent_stopped_typing', handleOpponentStoppedTyping);
-    gameSocket.on('opponent_progress', handleOpponentProgress);
-    gameSocket.on('opponent_submitted', handleOpponentSubmitted);
-    gameSocket.on('game_ended', handleGameEnded);
-    gameSocket.on('chat_message', handleChatMessage);
-    gameSocket.on('error', handleError);
-
-    // William's direct socket events
-    if (gameSocket.socket) {
-      gameSocket.socket.on('start_game', handleStartGame);
-      gameSocket.socket.on('server_message', handleServerMessage);
-    }
-
-    /**
-     * Cleanup function
-     */
-    return () => {
-      console.log('Cleaning up GameRoom event listeners...');
-      
-      // Remove GameSocket class event listeners
-      gameSocket.off('connection_status', handleConnectionStatus);
-      gameSocket.off('match_found', handleMatchFound);
-      gameSocket.off('game_started', handleGameStarted);
-      gameSocket.off('opponent_joined', handleOpponentJoined);
-      gameSocket.off('opponent_left', handleOpponentLeft);
-      gameSocket.off('opponent_typing', handleOpponentTyping);
-      gameSocket.off('opponent_stopped_typing', handleOpponentStoppedTyping);
-      gameSocket.off('opponent_progress', handleOpponentProgress);
-      gameSocket.off('opponent_submitted', handleOpponentSubmitted);
-      gameSocket.off('game_ended', handleGameEnded);
-      gameSocket.off('chat_message', handleChatMessage);
-      gameSocket.off('error', handleError);
-
-      // Remove William's direct socket events
-      if (gameSocket.socket) {
-        gameSocket.socket.off('start_game', handleStartGame);
-        gameSocket.socket.off('server_message', handleServerMessage);
-      }
-
-      // Clear timeouts
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      if (progressTimeoutRef.current) {
-        clearTimeout(progressTimeoutRef.current);
-      }
-    };
-  }, [user, roomData]);
-
-  /**
-   * Timer effect - handles countdown
-   */
+  // Set initial code template
   useEffect(() => {
-    if (gameState === 'active' && timeLeft > 0) {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            // Time's up!
-            setGameState('completed');
-            setGameResult({ winner: null, reason: 'timeout' });
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [gameState, timeLeft]);
-
-  /**
-   * Initialize code when language changes
-   */
-  useEffect(() => {
-    setCode(starterCode[language] || '');
+    setCode(languageTemplates[language] || '');
   }, [language]);
 
-  /**
-   * Handle typing indicators and progress updates
-   */
-  const handleCodeChange = useCallback((newCode) => {
-    setCode(newCode);
-    
-    // Send typing indicator
-    if (!opponent.isTyping) {
-      gameSocket.sendTyping(true);
-    }
-    
-    // Clear previous timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    // Stop typing after 2 seconds of inactivity
-    typingTimeoutRef.current = setTimeout(() => {
-      gameSocket.sendTyping(false);
-    }, 2000);
-    
-    // Send progress update (debounced)
-    if (progressTimeoutRef.current) {
-      clearTimeout(progressTimeoutRef.current);
-    }
-    
-    progressTimeoutRef.current = setTimeout(() => {
-      const linesOfCode = newCode.split('\n').filter(line => line.trim()).length;
-      const progress = Math.min((linesOfCode / 20) * 100, 95); // Estimate progress
-      
-      gameSocket.sendProgress({
-        linesOfCode,
-        progress: Math.round(progress),
-        language
-      });
-    }, 1000);
-  }, [language, opponent.isTyping]);
+  // Ready countdown effect
+  useEffect(() => {
+    if (showReady && isReady && opponentReady && readyCountdown > 0) {
+      const timer = setTimeout(() => {
+        setReadyCountdown(prev => prev - 1);
+      }, 1000);
 
-  /**
-   * Format time display
-   */
+      if (readyCountdown === 1) {
+        setTimeout(() => {
+          setShowReady(false);
+          setGameStarted(true);
+        }, 1000);
+      }
+
+      return () => clearTimeout(timer);
+    }
+  }, [showReady, isReady, opponentReady, readyCountdown]);
+
+  // Game timer
+  useEffect(() => {
+    let timer;
+    if (gameStarted && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [gameStarted, timeLeft]);
+
+  // Calculate progress based on code length
+  useEffect(() => {
+    const progress = Math.min((code.length / 200) * 100, 100);
+    setMyProgress(progress);
+
+    // Simulate opponent progress
+    if (gameStarted && opponent) {
+      const randomProgress = Math.min(myProgress + Math.random() * 20 - 10, 100);
+      setOpponentProgress(Math.max(0, randomProgress));
+    }
+  }, [code, gameStarted, opponent, myProgress]);
+
+  // Format time display
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  /**
-   * Handle code submission
-   */
-  const handleSubmit = async () => {
-    if (!code.trim()) return;
+  // Handle language change
+  const handleLanguageChange = (newLanguage) => {
+    setLanguage(newLanguage);
+    setCode(languageTemplates[newLanguage] || '');
+  };
+
+  // Handle test run with victory detection
+  const handleRunTests = () => {
+    setIsRunning(true);
     
-    setIsSubmitting(true);
-    
-    // Send submission via socket
-    gameSocket.submitSolution({
-      code: code.trim(),
-      language,
-      submissionTime: Date.now()
-    });
-    
-    // Simulate test execution (real implementation would wait for server response)
+    // Simulate test execution
     setTimeout(() => {
-      const mockResults = [
-        { id: 1, input: '[2,7,11,15], 9', expected: '[0,1]', actual: '[0,1]', passed: true },
-        { id: 2, input: '[3,2,4], 6', expected: '[1,2]', actual: '[1,2]', passed: true },
-        { id: 3, input: '[3,3], 6', expected: '[0,1]', actual: '[0,1]', passed: true }
-      ];
+      const passed = Math.random() > 0.3; // 70% pass rate for demo
+      const testResults = {
+        passed,
+        passedTests: passed ? currentProblem.testCases.length : Math.floor(Math.random() * currentProblem.testCases.length),
+        totalTests: currentProblem.testCases.length,
+        output: passed ? 'All tests passed!' : 'Some tests failed. Check your logic.',
+        executionTime: Math.floor(Math.random() * 100) + 50
+      };
       
-      setTestResults(mockResults);
-      setIsSubmitting(false);
+      setTestResults(testResults);
+      setIsRunning(false);
       
-      // If all tests pass, game ends with victory
-      if (mockResults.every(r => r.passed)) {
-        setGameState('completed');
-        setGameResult({ 
-          winner: user.id, 
-          reason: 'solution_correct',
-          solveTime: 600 - timeLeft,
-          coinsEarned: 50,
-          xpEarned: 25
-        });
+      // Check for victory (all tests passed)
+      if (testResults.passed && testResults.passedTests === currentProblem.testCases.length) {
+        setTimeout(() => {
+          // Check if this is user's first win (you can track this in user data)
+          const firstWin = !user.wins || user.wins === 0;
+          setIsFirstWin(firstWin);
+          setGameComplete(true);
+          setShowVictoryPopup(true);
+        }, 1000); // Small delay for dramatic effect
       }
     }, 2000);
   };
 
-  /**
-   * Handle chat message sending
-   */
-  const sendMessage = () => {
+  // Handle chat message
+  const handleSendMessage = () => {
     if (newMessage.trim()) {
       const message = {
         id: Date.now(),
-        sender: 'you',
-        message: newMessage.trim(),
-        timestamp: Date.now()
+        type: 'user',
+        sender: user.displayName,
+        message: newMessage,
+        timestamp: new Date().toLocaleTimeString()
       };
-      
-      setChatMessages(prev => [...prev, message]);
-      gameSocket.sendChatMessage(newMessage);
+      setMessages(prev => [...prev, message]);
       setNewMessage('');
+
+      // Simulate opponent response
+      setTimeout(() => {
+        const responses = [
+          'Good luck!', 'Nice approach!', 'Tricky problem!', 
+          'Almost got it!', 'Great solution!', 'Let\'s go!'
+        ];
+        const response = {
+          id: Date.now() + 1,
+          type: 'opponent',
+          sender: opponent?.displayName || 'Opponent',
+          message: responses[Math.floor(Math.random() * responses.length)],
+          timestamp: new Date().toLocaleTimeString()
+        };
+        setMessages(prev => [...prev, response]);
+      }, 1000 + Math.random() * 2000);
     }
   };
 
-  /**
-   * Handle game forfeit
-   */
-  const handleForfeit = () => {
-    if (window.confirm('Are you sure you want to forfeit this battle?')) {
-      gameSocket.forfeitGame();
-      setGameState('completed');
-      setGameResult({ 
-        winner: opponent.username, 
-        reason: 'forfeit',
-        coinsLost: 10
-      });
-    }
+  // Victory handling functions
+  const handleVictoryClose = () => {
+    setShowVictoryPopup(false);
+    // Navigate back to dashboard
+    navigate('dashboard');
   };
 
-  /**
-   * Handle leaving the room
-   */
-  const handleLeaveRoom = () => {
-    if (gameState === 'active') {
-      if (window.confirm('Leaving will forfeit the battle. Are you sure?')) {
-        gameSocket.leaveRoom();
-        navigate('dashboard');
-      }
-    } else {
-      gameSocket.leaveRoom();
-      navigate('dashboard');
-    }
+  const gameStats = {
+    completionTime: formatTime(30 * 60 - timeLeft), // Calculate actual completion time
+    testsPassedFirst: true, // Track if they got it right on first try
+    accuracy: 100,
+    difficulty: difficulty
   };
 
-  /**
-   * Render connection status indicator
-   */
-  const renderConnectionStatus = () => {
-    const statusConfig = {
-      connecting: { icon: Wifi, color: 'text-yellow-400', text: 'Connecting...' },
-      connected: { icon: Wifi, color: 'text-green-400', text: 'Connected' },
-      opponent_disconnected: { icon: WifiOff, color: 'text-red-400', text: 'Opponent disconnected' },
-      disconnected: { icon: WifiOff, color: 'text-red-400', text: 'Disconnected' }
-    };
-    
-    const config = statusConfig[connectionStatus] || statusConfig.connecting;
-    const Icon = config.icon;
-    
+  const rewards = {
+    coins: isFirstWin ? 100 : 75,
+    xp: isFirstWin ? 150 : 100,
+    rankPoints: isFirstWin ? 50 : 25,
+    achievements: isFirstWin ? ['First Victory'] : []
+  };
+
+  // Ready Screen Component
+  if (showReady) {
     return (
-      <div className={`flex items-center gap-2 ${config.color}`}>
-        <Icon className="w-4 h-4" />
-        <span className="text-sm font-medium">{config.text}</span>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
+        <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl p-8 border border-gray-700 shadow-2xl max-w-2xl w-full mx-4">
+          <div className="text-center">
+            <div className="flex justify-center mb-6">
+              <div className="p-4 bg-blue-500/20 rounded-full border border-blue-500/30">
+                <Swords className="w-12 h-12 text-blue-400" />
+              </div>
+            </div>
+            
+            <h1 className="text-3xl font-bold text-white mb-2">Battle Ready?</h1>
+            <p className="text-gray-300 mb-8">Prepare for competitive coding combat!</p>
+            
+            {/* Players */}
+            <div className="flex justify-between items-center mb-8">
+              <div className="text-center">
+                <Avatar src={user.picture} size="large" className="mb-3" />
+                <p className="text-white font-medium">{user.displayName}</p>
+                <p className="text-blue-400 text-sm">You</p>
+                {isReady ? (
+                  <div className="flex items-center justify-center gap-1 mt-2">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <span className="text-green-400 text-sm">Ready</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsReady(true)}
+                    className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    I'm Ready!
+                  </button>
+                )}
+              </div>
+              
+              <div className="text-6xl text-blue-400">⚔️</div>
+              
+              <div className="text-center">
+                <Avatar src={opponent?.picture} size="large" className="mb-3" />
+                <p className="text-white font-medium">{opponent?.displayName}</p>
+                <p className="text-purple-400 text-sm">{opponent?.rank}</p>
+                {opponentReady ? (
+                  <div className="flex items-center justify-center gap-1 mt-2">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <span className="text-green-400 text-sm">Ready</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-1 mt-2">
+                    <Clock className="w-4 h-4 text-yellow-400 animate-spin" />
+                    <span className="text-yellow-400 text-sm">Getting ready...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Countdown */}
+            {isReady && opponentReady && (
+              <div className="text-center">
+                <div className="text-6xl font-bold text-white mb-4 animate-pulse">
+                  {readyCountdown}
+                </div>
+                <p className="text-gray-300">Battle starts in...</p>
+              </div>
+            )}
+            
+            {/* Problem Preview */}
+            <div className="mt-8 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Problem: {currentProblem.title}
+              </h3>
+              <div className="flex items-center justify-center gap-4 text-sm">
+                <span className={`px-2 py-1 rounded ${
+                  difficulty === 'Easy' ? 'bg-green-500/20 text-green-400' :
+                  difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                  'bg-red-500/20 text-red-400'
+                }`}>
+                  {difficulty}
+                </span>
+                <span className="text-gray-400">•</span>
+                <span className="text-gray-300">Room: {roomCode}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
-  };
+  }
 
-  /**
-   * Render problem panel
-   */
-  const renderProblemPanel = () => (
-    <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 h-full overflow-y-auto">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-        <h2 className="text-xl font-bold text-white">{problem.title}</h2>
-        <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm font-semibold">
-          {problem.difficulty}
-        </span>
-      </div>
-
-      <div className="prose prose-invert max-w-none">
-        <p className="text-gray-300 mb-6 leading-relaxed">{problem.description}</p>
+  // Waiting screen
+  if (!opponent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+        <div className="p-6">
+          <button
+            onClick={() => navigate('dashboard')}
+            className="inline-flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </button>
+        </div>
         
-        <div className="space-y-4">
-          {problem.examples.map((example, index) => (
-            <div key={index} className="bg-gray-900/50 rounded-lg p-4">
-              <div className="text-sm font-semibold text-blue-400 mb-2">Example {index + 1}:</div>
-              <div className="font-mono text-sm space-y-1">
-                <div><span className="text-gray-400">Input:</span> <span className="text-white">{example.input}</span></div>
-                <div><span className="text-gray-400">Output:</span> <span className="text-white">{example.output}</span></div>
-                {example.explanation && (
-                  <div><span className="text-gray-400">Explanation:</span> <span className="text-gray-300">{example.explanation}</span></div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6">
-          <div className="text-sm font-semibold text-gray-400 mb-2">Constraints:</div>
-          <ul className="text-sm text-gray-300 space-y-1">
-            {problem.constraints.map((constraint, index) => (
-              <li key={index} className="font-mono">• {constraint}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-
-  /**
-   * Render code editor panel
-   */
-  const renderCodeEditor = () => (
-    <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 h-full flex flex-col">
-      {/* Editor Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-4">
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
-            disabled={gameState !== 'active'}
-          >
-            <option value="javascript">JavaScript</option>
-            <option value="python">Python</option>
-            <option value="java">Java</option>
-          </select>
-          
-          <div className="flex items-center gap-2 text-gray-400 text-sm">
-            <Code className="w-4 h-4" />
-            {code.split('\n').length} lines
-          </div>
-          
-          {/* Connection Status */}
-          {renderConnectionStatus()}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {/* Run tests locally */}}
-            disabled={gameState !== 'active'}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
-          >
-            <Play className="w-4 h-4" />
-            Run
-          </button>
-          
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting || gameState !== 'active' || !code.trim()}
-            className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-            Submit
-          </button>
-        </div>
-      </div>
-
-      {/* Code Editor */}
-      <div className="flex-1 bg-gray-900 rounded-lg p-4 font-mono text-sm overflow-auto">
-        <textarea
-          value={code}
-          onChange={(e) => handleCodeChange(e.target.value)}
-          className="w-full h-full bg-transparent text-white resize-none focus:outline-none"
-          placeholder={gameState === 'waiting' ? 'Waiting for game to start...' : 'Start coding here...'}
-          spellCheck={false}
-          disabled={gameState !== 'active'}
-        />
-      </div>
-
-      {/* Test Results */}
-      {testResults.length > 0 && (
-        <div className="mt-4 bg-gray-900/50 rounded-lg p-4">
-          <div className="text-sm font-semibold text-white mb-3">Test Results:</div>
-          <div className="space-y-2">
-            {testResults.map((result) => (
-              <div key={result.id} className="flex items-center gap-3 text-sm">
-                {result.passed ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-red-400" />
-                )}
-                <span className="text-gray-300">
-                  Test {result.id}: {result.input}
-                </span>
-                {!result.passed && (
-                  <span className="text-red-400">
-                    Expected {result.expected}, got {result.actual}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  /**
-   * Render opponent panel
-   */
-  const renderOpponentPanel = () => (
-    <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 h-full">
-      {/* Opponent Info */}
-      <div className="flex items-center gap-3 mb-6">
-        <Avatar theme={opponent.avatar.theme} color={opponent.avatar.color} size="md" />
-        <div className="flex-1">
-          <div className="text-white font-semibold">{opponent.username}</div>
-          <div className="text-gray-400 text-sm flex items-center gap-1">
-            {opponent.isConnected ? (
-              opponent.isTyping ? (
-                <>
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  typing...
-                </>
-              ) : (
-                <>
-                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  {opponent.lastSeen}
-                </>
-              )
-            ) : (
-              <>
-                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                offline
-              </>
-            )}
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <div className="text-center">
+            <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-6"></div>
+            <h2 className="text-2xl font-bold text-white mb-2">Waiting for Opponent</h2>
+            <p className="text-gray-300 mb-4">Room Code: <span className="font-mono text-blue-400">{roomCode}</span></p>
+            <p className="text-gray-400">Demo opponent will join in a few seconds...</p>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Progress */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-gray-400 text-sm">Progress</span>
-          <span className="text-white font-semibold">{opponent.progress}%</span>
-        </div>
-        <div className="w-full bg-gray-700 rounded-full h-3">
-          <div 
-            className="bg-gradient-to-r from-red-500 to-red-600 h-3 rounded-full transition-all duration-500"
-            style={{ width: `${opponent.progress}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Real-time Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-white">{opponent.linesOfCode}</div>
-          <div className="text-gray-400 text-sm">Lines</div>
-        </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-white">0</div>
-          <div className="text-gray-400 text-sm">Submissions</div>
-        </div>
-      </div>
-
-      {/* Chat Toggle */}
-      <button
-        onClick={() => setIsChatOpen(!isChatOpen)}
-        className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors mb-4"
-      >
-        <MessageCircle className="w-4 h-4" />
-        {isChatOpen ? 'Hide Chat' : 'Show Chat'}
-        {chatMessages.length > 0 && !isChatOpen && (
-          <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-            {chatMessages.filter(msg => msg.sender === 'opponent').length}
-          </span>
-        )}
-      </button>
-
-      {/* Chat */}
-      {isChatOpen && (
-        <div className="flex flex-col h-48">
-          <div className="flex-1 bg-gray-900/50 rounded-lg p-3 overflow-y-auto mb-3">
-            <div className="space-y-2">
-              {chatMessages.map((msg) => (
-                <div key={msg.id} className={`text-sm ${
-                  msg.sender === 'you' ? 'text-blue-400' :
-                  msg.sender === 'system' ? 'text-gray-400' : 'text-green-400'
-                }`}>
-                  <span className="font-semibold">
-                    {msg.sender === 'you' ? 'You' : 
-                     msg.sender === 'system' ? 'System' : opponent.username}:
-                  </span> {msg.message}
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="Type a message..."
-              maxLength={200}
-              className="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!newMessage.trim()}
-              className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="space-y-3 mt-4">
-        {gameState === 'active' && (
-          <button
-            onClick={handleForfeit}
-            className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <Flag className="w-4 h-4" />
-            Forfeit
-          </button>
-        )}
-      </div>
-    </div>
-  );
-
+  // Main game interface
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <header className="relative z-50 px-6 py-4 border-b border-gray-700/50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <button
-            onClick={handleLeaveRoom}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            {gameState === 'active' ? 'Forfeit & Leave' : 'Leave Battle'}
-          </button>
-
-          {/* Timer */}
-          <div className={`flex items-center gap-4 bg-gray-800/50 rounded-xl px-6 py-3 ${
-            timeLeft < 60 ? 'bg-red-900/50 border border-red-500/30' : ''
-          }`}>
-            <Clock className={`w-5 h-5 ${timeLeft < 60 ? 'text-red-400' : 'text-blue-400'}`} />
-            <div className={`text-2xl font-mono font-bold ${
-              timeLeft < 60 ? 'text-red-400' : 'text-white'
+      <div className="bg-gray-800 border-b border-gray-700 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('dashboard')}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-xl font-bold">{currentProblem.title}</h1>
+            <span className={`px-2 py-1 rounded text-sm ${
+              difficulty === 'Easy' ? 'bg-green-500/20 text-green-400' :
+              difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+              'bg-red-500/20 text-red-400'
             }`}>
-              {formatTime(timeLeft)}
-            </div>
-            <div className="text-gray-400">remaining</div>
-          </div>
-
-          {/* Battle Status */}
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${
-              gameState === 'active' ? 'bg-green-500 animate-pulse' :
-              gameState === 'waiting' ? 'bg-yellow-500 animate-pulse' :
-              'bg-gray-500'
-            }`}></div>
-            <span className={`font-semibold ${
-              gameState === 'active' ? 'text-green-400' :
-              gameState === 'waiting' ? 'text-yellow-400' :
-              'text-gray-400'
-            }`}>
-              {gameState === 'active' ? 'Live Battle' :
-               gameState === 'waiting' ? 'Waiting for Opponent' :
-               'Battle Ended'}
+              {difficulty}
             </span>
           </div>
-        </div>
-      </header>
-
-      {/* Main Battle Interface */}
-      <div className="px-6 py-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-12 gap-6 h-[calc(100vh-200px)]">
-            {/* Problem Panel */}
-            <div className="col-span-12 lg:col-span-3">
-              {renderProblemPanel()}
+          
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-blue-400" />
+              <span className="font-mono text-lg">{formatTime(timeLeft)}</span>
             </div>
-
-            {/* Code Editor Panel */}
-            <div className="col-span-12 lg:col-span-6">
-              {renderCodeEditor()}
-            </div>
-
-            {/* Opponent Panel */}
-            <div className="col-span-12 lg:col-span-3">
-              {renderOpponentPanel()}
+            <div className="text-sm text-gray-400">
+              Room: {roomCode}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Victory/Defeat Modal */}
-      {gameState === 'completed' && gameResult && (
-        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-2xl p-8 text-center max-w-md mx-4">
-            {gameResult.winner === user.id ? (
-              <>
-                <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-white mb-2">Victory!</h2>
-                <p className="text-gray-400 mb-6">
-                  {gameResult.reason === 'solution_correct' ? 'You solved the problem first!' :
-                   gameResult.reason === 'opponent_forfeit' ? 'Your opponent forfeited!' :
-                   'You won the battle!'}
-                </p>
-                
-                {gameResult.solveTime && (
-                  <div className="text-gray-300 mb-4">
-                    Solved in {formatTime(gameResult.solveTime)}
-                  </div>
+      <div className="flex h-[calc(100vh-80px)]">
+        {/* Left Panel - Problem & Code */}
+        <div className="flex-1 flex flex-col">
+          {/* Problem Description */}
+          <div className="bg-gray-800 p-6 border-b border-gray-700 h-1/3 overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-4">{currentProblem.title}</h2>
+            <div className="text-gray-300 mb-4 whitespace-pre-line">
+              {currentProblem.description}
+            </div>
+            
+            {currentProblem.examples.map((example, index) => (
+              <div key={index} className="mb-4 bg-gray-700/50 p-3 rounded">
+                <p className="font-medium text-white mb-1">Example {index + 1}:</p>
+                <p className="text-gray-300 font-mono text-sm">Input: {example.input}</p>
+                <p className="text-gray-300 font-mono text-sm">Output: {example.output}</p>
+                {example.explanation && (
+                  <p className="text-gray-400 text-sm mt-1">Explanation: {example.explanation}</p>
                 )}
+              </div>
+            ))}
+          </div>
+
+          {/* Code Editor */}
+          <div className="flex-1 flex flex-col bg-gray-900">
+            {/* Editor Controls */}
+            <div className="bg-gray-800 p-3 border-b border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <select
+                  value={language}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-white"
+                >
+                  <option value="javascript">JavaScript</option>
+                  <option value="python">Python</option>
+                  <option value="java">Java</option>
+                  <option value="cpp">C++</option>
+                </select>
                 
-                <div className="grid grid-cols-2 gap-4 mb-6 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-green-400">+{gameResult.coinsEarned || 50}</div>
-                    <div className="text-gray-400 text-sm">Coins</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-blue-400">+{gameResult.xpEarned || 25}</div>
-                    <div className="text-gray-400 text-sm">XP</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setFontSize(Math.max(12, fontSize - 1))}
+                    className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                  >
+                    A-
+                  </button>
+                  <span className="text-sm text-gray-400">{fontSize}px</span>
+                  <button
+                    onClick={() => setFontSize(Math.min(20, fontSize + 1))}
+                    className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                  >
+                    A+
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCode(languageTemplates[language])}
+                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Reset
+                </button>
+                <button
+                  onClick={handleRunTests}
+                  disabled={isRunning}
+                  className="px-4 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-sm flex items-center gap-1"
+                >
+                  {isRunning ? (
+                    <>
+                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                      Running...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3 h-3" />
+                      Run Tests
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Code Area */}
+            <div className="flex-1 relative">
+              <textarea
+                ref={codeRef}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="w-full h-full bg-gray-900 text-white p-4 font-mono resize-none border-none outline-none"
+                style={{ fontSize: `${fontSize}px` }}
+                placeholder="Write your solution here..."
+              />
+            </div>
+
+            {/* Test Results */}
+            {testResults && (
+              <div className="bg-gray-800 border-t border-gray-700 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">Test Results</span>
+                  <span className={`text-sm ${testResults.passed ? 'text-green-400' : 'text-red-400'}`}>
+                    {testResults.passedTests}/{testResults.totalTests} passed
+                  </span>
+                </div>
+                <div className={`p-3 rounded ${testResults.passed ? 'bg-green-900/20 border border-green-700' : 'bg-red-900/20 border border-red-700'}`}>
+                  <p className={`text-sm ${testResults.passed ? 'text-green-300' : 'text-red-300'}`}>
+                    {testResults.output}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Execution time: {testResults.executionTime}ms
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel - Opponent & Chat */}
+        <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col">
+          {/* Opponent Info */}
+          <div className="p-4 border-b border-gray-700">
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar src={opponent.picture} size="medium" />
+              <div>
+                <p className="font-medium">{opponent.displayName}</p>
+                <p className="text-sm text-gray-400">{opponent.rank}</p>
+              </div>
+              <div className="ml-auto">
+                <Wifi className="w-4 h-4 text-green-400" />
+              </div>
+            </div>
+            
+            {/* Progress Bars */}
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Your Progress</span>
+                  <span>{Math.round(myProgress)}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${myProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Opponent Progress</span>
+                  <span>{Math.round(opponentProgress)}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${opponentProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="space-y-3">
+              {messages.map((message) => (
+                <div key={message.id} className={`${
+                  message.type === 'system' ? 'text-center' :
+                  message.type === 'user' ? 'text-right' : 'text-left'
+                }`}>
+                  {message.type === 'system' ? (
+                    <p className="text-xs text-gray-400 bg-gray-700/50 rounded px-2 py-1 inline-block">
+                      {message.message}
+                    </p>
+                  ) : (
+                    <div className={`inline-block max-w-[80%] p-2 rounded-lg ${
+                      message.type === 'user' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-gray-700 text-gray-100'
+                    }`}>
+                      <p className="text-sm">{message.message}</p>
+                      <p className="text-xs opacity-70 mt-1">{message.timestamp}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {opponentTyping && (
+                <div className="text-left">
+                  <div className="inline-block bg-gray-700 text-gray-100 p-2 rounded-lg">
+                    <div className="flex items-center gap-1">
+                      <div className="flex gap-1">
+                        <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                        <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                      </div>
+                      <span className="text-xs text-gray-400 ml-2">typing...</span>
+                    </div>
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-white mb-2">Defeat</h2>
-                <p className="text-gray-400 mb-6">
-                  {gameResult.reason === 'solution_correct' ? 'Your opponent solved the problem first!' :
-                   gameResult.reason === 'forfeit' ? 'You forfeited the battle.' :
-                   gameResult.reason === 'timeout' ? 'Time ran out!' :
-                   'Better luck next time!'}
-                </p>
-                
-                {gameResult.coinsLost && (
-                  <div className="text-center mb-6">
-                    <div className="text-2xl font-bold text-red-400">-{gameResult.coinsLost}</div>
-                    <div className="text-gray-400 text-sm">Coins</div>
-                  </div>
-                )}
-              </>
-            )}
+              )}
+            </div>
+          </div>
 
-            <div className="flex gap-3">
+          {/* Chat Input */}
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Send a message..."
+                className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white placeholder-gray-400"
+              />
               <button
-                onClick={() => navigate('dashboard')}
-                className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition-colors"
+                onClick={handleSendMessage}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors"
               >
-                Dashboard
-              </button>
-              <button
-                onClick={() => navigate('match-lobby')}
-                className="flex-1 bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition-colors"
-              >
-                Next Battle
+                <Send className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Victory Popup */}
+      {showVictoryPopup && (
+        <VictoryPopup
+          show={showVictoryPopup}
+          onClose={handleVictoryClose}
+          user={user}
+          opponent={opponent}
+          gameStats={gameStats}
+          rewards={rewards}
+          isFirstWin={isFirstWin}
+        />
       )}
     </div>
   );
