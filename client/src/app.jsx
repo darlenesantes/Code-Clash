@@ -186,6 +186,7 @@ const App = () => {
           <GameRoom 
             navigate={navigate} 
             user={user}
+            setUser={setUser}
             roomData={roomData}
           />
         );  
