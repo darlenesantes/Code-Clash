@@ -4,7 +4,7 @@ import Login from './pages/Login';
 import ProfileSetup from './pages/ProfileSetup';
 import LeaderboardPage from './pages/LeaderboardPage';
 import GameDashboard from './pages/GameDashboard';
-import EnhancedGameRoom from './pages/GameRoom'; 
+import GameRoom from './pages/GameRoom'; // Fixed import name
 import MatchLobby from './pages/MatchLobby';
 import authService from './services/api/authService';
 import './styles/global.css';
@@ -15,7 +15,7 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [roomData, setRoomData] = useState(null); // Store room data for navigation
+  const [roomData, setRoomData] = useState(null);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -93,6 +93,12 @@ const App = () => {
     }
   };
 
+  // Profile update function for victory rewards
+  const handleProfileUpdate = (updatedUser) => {
+    console.log('Updating user profile:', updatedUser);
+    setUser(updatedUser);
+  };
+
   // Loading screen
   if (isLoading) {
     return (
@@ -112,6 +118,7 @@ const App = () => {
     navigate,
     handleLogin,
     handleLogout,
+    handleProfileUpdate,
     currentPage,
     roomData,
     setRoomData
@@ -168,10 +175,13 @@ const App = () => {
 
       case 'game-room':
         return (
-          <EnhancedGameRoom 
+          <GameRoom 
             navigate={navigate} 
             user={user}
-            roomData={roomData}
+            roomCode={roomData?.roomCode}
+            difficulty={roomData?.difficulty}
+            problem={roomData?.problem}
+            onUpdateProfile={handleProfileUpdate}
           />
         );  
 
@@ -180,7 +190,6 @@ const App = () => {
           <MatchLobby 
             navigate={navigate} 
             user={user}
-            mode="quick"
           />
         );
       

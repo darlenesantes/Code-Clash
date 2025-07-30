@@ -15,7 +15,8 @@ const GameRoom = ({
   user, 
   roomCode, 
   difficulty = 'Easy',
-  problem = null 
+  problem = null,
+  onUpdateProfile // Add this prop for profile updates
 }) => {
   // Game state
   const [gameStarted, setGameStarted] = useState(false);
@@ -674,6 +675,7 @@ const GameRoom = ({
           gameStats={gameStats}
           rewards={rewards}
           isFirstWin={isFirstWin}
+          onUpdateProfile={onUpdateProfile}
         />
       )}
     </div>
