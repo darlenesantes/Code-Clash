@@ -123,6 +123,11 @@ function matchSocketHandler(socket, io) {
         problem,
         timeLimit: 600
       });
+      io.to(roomCode).emit("game_started", {
+        roomCode,
+        problem,
+        timeLimit: 600
+      });
     }
   });
 
@@ -164,7 +169,14 @@ function matchSocketHandler(socket, io) {
                 startTime,
                 timeLimit: 600
             });
-            }
+
+            io.to(matchCode).emit("game_started", {
+              roomCode: matchCode,
+              problem: problem,
+              startTime,
+              timeLimit: 600
+          });
+        }
     });
     
 

@@ -128,6 +128,11 @@ const MatchLobby = ({ navigate, user, mode = 'quick' }) => {
 
     const handleStartGame = ({ roomCode: rc, problem, timeLimit }) => {
       console.log('🔥 [MatchLobby] start_game received:', { rc, problem, timeLimit });
+      gameSocket.emit("game_started", {
+        roomCode,
+        problem,
+        timeLimit: 600
+      });
       navigate('game-room', {
         roomCode: rc,
         problem,

@@ -129,6 +129,7 @@ const GameRoom = ({ navigate, user, roomData }) => {
       if (data.problem) {
         setProblem(data.problem);
       }
+      setMatchStartTime(Date.now());
       setTimeLeft(data.timeLimit || 600);
       setChatMessages([{ 
         id: Date.now(), 
@@ -158,6 +159,7 @@ const GameRoom = ({ navigate, user, roomData }) => {
         avatar: data.avatar || data.user?.avatar || { theme: 'coder', color: 'red' },
         isConnected: true
       }));
+      setMatchStartTime(data.startTime);
       setConnectionStatus('connected');
     };
 
@@ -327,10 +329,13 @@ gameSocket.on('submission_result', onSubmissionResult);
    * Timer effect - handles countdown
    */
   useEffect(() => {
-    if (gameState === 'active' && matchStartTime) {
+    console.log('=== USING EFFECT, GAME STATE IS:', gameState);
+    console.log("MATCH START TIME IS:", matchStartTime)
+    if (gameState == 'active' && matchStartTime) {
       const totalGameTime = 600; // 10 minutes
 
       const timer = setInterval(() => {
+        console.log("time change");
         const now = Date.now();
         const elapsed = Math.floor((now - matchStartTime) / 1000);
         const remainingTime = Math.max(totalGameTime - elapsed, 0);
