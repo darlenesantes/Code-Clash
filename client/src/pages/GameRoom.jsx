@@ -183,10 +183,35 @@ const GameRoom = ({ navigate, user, roomData }) => {
     };
 
     // Game end events
-    const handleGameEnded = (data) => {
+    const handleGameEnded = async (data) => {
       console.log('Game ended:', data);
       setGameState('completed');
       setGameResult(data);
+      const isWin = data.winner === user.id;
+      // update user stats (wins/winstreak)
+      try {
+        const response = await fetch('/api/user/update-stats', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            googleId: user.googleId,
+            isWin
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          console.error('Failed to update user stats:', result.error);
+          return;
+        }
+        console.log('User stats updated successfully:', result);
+        // Update local user state
+        setUser(result.user);
+        
+      } catch (error) {
+        console.error('Error updating user stats:', error);
+      }
+
     };
 
     // Chat events

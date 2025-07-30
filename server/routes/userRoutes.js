@@ -94,73 +94,61 @@ router.get('/stats/:id', async (req, res) => {
 
 // Route to update match stats (wins, matches played)
 router.put('/update-stats', async (req, res) => {
-    const {userId, isWin} = req.body;
+    const {googleId, isWin} = req.body;
 
-    // Update match stats based on the outcome of a match
-    try {
-        const updatedUser = await updateMatchStats(userId, isWin);
-        res.status(200).json(updatedUser);
-    } catch (error) {
-        console.error('Error updating match stats:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// route to update user coins and rank after a game ends
-/**
- * This route updates the user's coins and rank based on the game result.
- * input: { googleId: string, isWin: boolean }
- * isWin is true if the user won the game, false if they lost.
- * googleId is the user's unique identifier
- * The rank is determined based on the user's coins
- * result is json containing the user google ID, coins, and rank
- */
-router.put('/update-coins-rank', async (req, res) => {
-    const { googleId, isWin } = req.body; // result can be 'true', 'false', draws can be treated as a loss
-    
+    // basic validation
     if (!googleId || typeof isWin !== 'boolean') {
         return res.status(400).json({ error: 'Invalid request data' });
     }
 
     try {
+        //find user by googleId
         const user = await User.findOne({ where: { googleId } });
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // update coins:
-        const coinsChange = isWin ? 100 : -50; // win gives 100 coins, loss deducts 50 coins
-        const newCoins = Math.max(0, user.coins + coinsChange); // ensure coins don't go below 0
-        user.coins = newCoins;
+        // update match stats
+        if (isWin) {
+            user.wins += 1;
+            user.winStreak += 1;
+        } else {
+            user.winStreak = 0;
+        }
+        user.totalMatchesPlayed += 1;
 
-        // update rank based on coins
-        let rank;
+
+        // update rank
+        const coinChange = isWin ? 100 : -50; // 100 coins for win, -50 for loss
+        const newCoins = user.coins + coinChange;
+
+        user.coins = Math.max(newCoins, 0); // Ensure coins don't go negative
         const c = newCoins;
-        if (c >= 1350) rank = 'Legend';
-        else if (c >= 1200) rank = 'Gold 3';
-        else if (c >= 1050) rank = 'Gold 2';
-        else if (c >= 900) rank = 'Gold 1';
-        else if (c >= 750) rank = 'Silver 3';
-        else if (c >= 600) rank = 'Silver 2';
-        else if (c >= 450) rank = 'Silver 1';
-        else if (c >= 300) rank = 'Bronze 3';
-        else if (c >= 150) rank = 'Bronze 2';
-        else rank = 'Bronze 1';
-
-        user.rank = rank;
-
-        // save and respond
+        if (c >= 1350) user.rank = 'Legend';
+        else if (c >= 1200) user.rank = 'Gold 3';
+        else if (c >= 1050) user.rank = 'Gold 2';
+        else if (c >= 900) user.rank = 'Gold 1';
+        else if (c >= 750) user.rank = 'Silver 3';
+        else if (c >= 600) user.rank = 'Silver 2';
+        else if (c >= 450) user.rank = 'Silver 1';
+        else if (c >= 300) user.rank = 'Bronze 3';
+        else if (c >= 150) user.rank = 'Bronze 2';
+        else user.rank = 'Bronze 1';
+        
         await user.save();
-        res.json({
-            message: 'User coins and rank updated successfully',
+        res.status(200).json({
+            message: 'User stats updated successfully',
             user: {
                 googleId: user.googleId,
-                coins: user.coins,
-                rank: user.rank
+                wins: user.wins,
+                totalMatchesPlayed: user.totalMatchesPlayed,
+                winStreak: user.winStreak,
+                rank: user.rank,
+                coins: user.coins
             }
         });
     } catch (error) {
-        console.error('Error updating user coins and rank:', error);
+        console.error('Error updating user stats:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
