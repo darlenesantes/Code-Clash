@@ -12,8 +12,8 @@ const Login = ({ navigate, onLogin }) => {
     try {
       console.log('The name is this:', user.name);
       console.log("THE USER ID IS THIS:", user.googleId);
-      const response = await fetch('/api/user/auth/google', {
-        method: 'Post',
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/user/auth/google`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
