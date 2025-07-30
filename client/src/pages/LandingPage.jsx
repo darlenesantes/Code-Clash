@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Play, Eye, Trophy, Users, Flame, Coins, Crown, ArrowRight, Github, Twitter } from 'lucide-react';
+import { Zap, Play, Eye, Trophy, Users, Flame, Coins, Crown, ArrowRight, Github, Twitter, Pause, RotateCcw, Clock } from 'lucide-react';
 
 const CodeClashLanding = ({ navigate, user }) => {
   const [liveCount, setLiveCount] = useState(247);
@@ -99,6 +99,228 @@ const CodeClashLanding = ({ navigate, user }) => {
             {index === currentLine && <span className="animate-pulse text-blue-400">|</span>}
           </div>
         ))}
+      </div>
+    );
+  };
+
+  // Live Battle Demo Component
+  const LiveBattleDemo = () => {
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [playerProgress, setPlayerProgress] = useState(0);
+    const [opponentProgress, setOpponentProgress] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+    const [currentStep, setCurrentStep] = useState(0);
+    const [winner, setWinner] = useState(null);
+
+    // Demo battle steps
+    const battleSteps = [
+      { time: 0, player: 0, opponent: 0, event: "Battle begins! Reading the problem..." },
+      { time: 10, player: 15, opponent: 12, event: "Both warriors analyzing the Two Sum challenge..." },
+      { time: 25, player: 35, opponent: 28, event: "Coding approaches in progress..." },
+      { time: 45, player: 52, opponent: 48, event: "First test cases being executed..." },
+      { time: 60, player: 68, opponent: 65, event: "Debugging and optimizing solutions..." },
+      { time: 80, player: 85, opponent: 82, event: "Final optimizations and edge cases..." },
+      { time: 95, player: 100, opponent: 94, event: "🎉 Victory! You solved it first!" }
+    ];
+
+    const codeSnippets = [
+      `def twoSum(nums, target):
+    # Analyzing the problem...`,
+      `def twoSum(nums, target):
+    seen = {}
+    # Using hash table approach...`,
+      `def twoSum(nums, target):
+    seen = {}
+    for i, num in enumerate(nums):
+        complement = target - num`,
+      `def twoSum(nums, target):
+    seen = {}
+    for i, num in enumerate(nums):
+        complement = target - num
+        if complement in seen:
+            return [seen[complement], i]
+        seen[num] = i`
+    ];
+
+    useEffect(() => {
+      let interval;
+      if (isPlaying && currentStep < battleSteps.length - 1) {
+        interval = setInterval(() => {
+          setProgress(prev => {
+            const newProgress = prev + 1;
+            const currentBattleStep = battleSteps.find(step => step.time <= newProgress);
+            
+            if (currentBattleStep) {
+              setPlayerProgress(currentBattleStep.player);
+              setOpponentProgress(currentBattleStep.opponent);
+              setTimeLeft(600 - newProgress * 6);
+              
+              if (currentBattleStep.time === newProgress) {
+                setCurrentStep(battleSteps.indexOf(currentBattleStep));
+              }
+            }
+            
+            if (newProgress >= 95) {
+              setWinner('player');
+              setIsPlaying(false);
+            }
+            
+            return newProgress >= 100 ? 100 : newProgress;
+          });
+        }, 100);
+      }
+      
+      return () => clearInterval(interval);
+    }, [isPlaying, currentStep]);
+
+    const resetDemo = () => {
+      setProgress(0);
+      setPlayerProgress(0);
+      setOpponentProgress(0);
+      setTimeLeft(600);
+      setCurrentStep(0);
+      setWinner(null);
+      setIsPlaying(false);
+    };
+
+    const formatTime = (seconds) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    return (
+      <div className="relative bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 rounded-2xl border border-gray-700 overflow-hidden">
+        {/* Header */}
+        <div className="bg-gray-800/50 backdrop-blur border-b border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              </div>
+              <span className="text-white font-semibold">🏟️ Live Battle Arena - Two Sum</span>
+            </div>
+            <div className="flex items-center gap-2 text-blue-400">
+              <Clock className="w-4 h-4" />
+              <span className="font-mono">{formatTime(timeLeft)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Battle Content */}
+        <div className="p-6">
+          {/* Players */}
+          <div className="flex justify-between items-center mb-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-2 mx-auto">
+                <span className="text-2xl">👤</span>
+              </div>
+              <p className="text-white font-semibold">You</p>
+              <p className="text-blue-400 text-sm">Gold II</p>
+              <div className="mt-2">
+                <div className="text-sm text-gray-300 mb-1">{playerProgress}% Complete</div>
+                <div className="w-24 bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${playerProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-4xl mb-2">⚔️</div>
+              <div className="text-yellow-400 font-semibold">VS</div>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mb-2 mx-auto">
+                <span className="text-2xl">🤖</span>
+              </div>
+              <p className="text-white font-semibold">CodeNinja</p>
+              <p className="text-purple-400 text-sm">Platinum I</p>
+              <div className="mt-2">
+                <div className="text-sm text-gray-300 mb-1">{opponentProgress}% Complete</div>
+                <div className="w-24 bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${opponentProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Code Editor Simulation */}
+          <div className="bg-gray-900 rounded-lg border border-gray-700 mb-4">
+            <div className="bg-gray-800 px-4 py-2 border-b border-gray-700 flex items-center justify-between">
+              <span className="text-sm text-gray-300">solution.py</span>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 bg-green-600 text-white text-xs rounded">Python</span>
+              </div>
+            </div>
+            <div className="p-4 font-mono text-sm">
+              <pre className="text-green-400 whitespace-pre-wrap">
+                {codeSnippets[Math.min(Math.floor(currentStep / 2), codeSnippets.length - 1)]}
+                <span className="animate-pulse">|</span>
+              </pre>
+            </div>
+          </div>
+
+          {/* Battle Events */}
+          <div className="bg-gray-800/30 rounded-lg p-4 mb-4">
+            <div className="text-center">
+              <div className="text-yellow-400 font-semibold mb-2">
+                {battleSteps[currentStep]?.event || "⚡ Preparing for epic battle..."}
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Victory Screen */}
+          {winner && (
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-6xl mb-4 animate-bounce">🏆</div>
+                <h2 className="text-3xl font-bold text-yellow-400 mb-2">Epic Victory!</h2>
+                <p className="text-white mb-4">🎉 First to solve wins +75 coins & XP!</p>
+                <button
+                  onClick={resetDemo}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  Watch Another Battle
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Controls */}
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              disabled={winner}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+            >
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {isPlaying ? 'Pause Battle' : 'Start Battle'}
+            </button>
+            <button
+              onClick={resetDemo}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -386,7 +608,7 @@ const CodeClashLanding = ({ navigate, user }) => {
         </div>
       </section>
 
-      {/* Demo Section */}
+      {/* Demo Section - REPLACED WITH LIVE BATTLE DEMO */}
       <section id="demo-section" className="relative z-10 py-32">
         <div className="container mx-auto px-6 text-center">
           <div className="max-w-4xl mx-auto">
@@ -394,18 +616,23 @@ const CodeClashLanding = ({ navigate, user }) => {
               See It In <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Action</span>
             </h2>
             <p className="text-xl text-gray-300 mb-8">
-              Watch how CodeClash transforms boring leetcode grinding into epic real-time battles.
+              Watch an epic live coding battle unfold. This is what every CodeClash match feels like!
             </p>
             
-            {/* Demo Video Placeholder */}
-            <div className="bg-gray-800/50 rounded-2xl p-8 border border-gray-700/50 backdrop-blur-sm">
-              <div className="aspect-video bg-gradient-to-br from-blue-900/20 to-purple-900/20 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-600">
-                <div className="text-center">
-                  <Play className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                  <p className="text-gray-300 text-lg">Demo Video Coming Soon!</p>
-                  <p className="text-gray-500">Epic coding battles in action</p>
-                </div>
-              </div>
+            {/* LIVE BATTLE DEMO - This replaces the placeholder */}
+            <LiveBattleDemo />
+            
+            <div className="mt-8 text-center">
+              <p className="text-gray-400 mb-4">
+                ⚡ Experience the thrill yourself - every battle is this intense!
+              </p>
+              <Button 
+                size="lg"
+                onClick={() => navigate('login')}
+              >
+                <Play className="w-5 h-5" />
+                Start Your First Battle
+              </Button>
             </div>
           </div>
         </div>

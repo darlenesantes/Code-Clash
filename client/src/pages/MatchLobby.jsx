@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Copy, Users, Target, Clock, 
-  Shield, Zap, CheckCircle, AlertCircle, Wifi, WifiOff 
+  Shield, Zap, CheckCircle, AlertCircle, Wifi, WifiOff, 
+  Share2, UserPlus, Eye
 } from 'lucide-react';
 
 const MatchLobby = ({ navigate, user }) => {
@@ -14,6 +15,7 @@ const MatchLobby = ({ navigate, user }) => {
   const [isJoiningRoom, setIsJoiningRoom] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [roomCreated, setRoomCreated] = useState(false);
 
   // Clear messages after 3 seconds
   useEffect(() => {
@@ -36,10 +38,20 @@ const MatchLobby = ({ navigate, user }) => {
     return result;
   };
 
-  // Handle room creation
+  // Handle room creation - ONLY creates code, doesn't navigate
   const handleCreateRoom = async () => {
     if (!isConnected) {
       setError('Please wait for connection to establish.');
+      return;
+    }
+
+    if (roomCreated) {
+      // If room already created, just go to that room
+      navigate('game-room', {
+        roomCode: generatedCode,
+        difficulty: difficulty,
+        isCreator: true
+      });
       return;
     }
 
@@ -50,19 +62,15 @@ const MatchLobby = ({ navigate, user }) => {
       const roomCode = generateRoomCode();
       setGeneratedCode(roomCode);
       
-      // Navigate to game room immediately with the generated code
+      // Just create the room and show the code - DON'T navigate
       setTimeout(() => {
-        navigate('game-room', {
-          roomCode: roomCode,
-          difficulty: difficulty,
-          isCreator: true
-        });
+        setRoomCreated(true);
+        setSuccess('Room created! Share the code with friends.');
+        setIsCreatingRoom(false);
       }, 1000);
 
-      setSuccess('Room created! Redirecting to battle...');
     } catch (err) {
       setError('Failed to create room. Please try again.');
-    } finally {
       setIsCreatingRoom(false);
     }
   };
@@ -90,7 +98,7 @@ const MatchLobby = ({ navigate, user }) => {
       if (isValidRoom) {
         setSuccess('Joining room...');
         
-        // Navigate to game room immediately
+        // Navigate to game room
         setTimeout(() => {
           navigate('game-room', {
             roomCode: inputCode.toUpperCase(),
@@ -108,7 +116,7 @@ const MatchLobby = ({ navigate, user }) => {
     }
   };
 
-  // Handle quick match
+  // Handle quick match - this one navigates immediately
   const handleQuickMatch = async () => {
     if (!isConnected) {
       setError('Please wait for connection to establish.');
@@ -133,9 +141,18 @@ const MatchLobby = ({ navigate, user }) => {
   // Copy room code to clipboard
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
-      setSuccess('Room code copied to clipboard!');
+      setSuccess('Room code copied! Share it with friends.');
     }).catch(() => {
       setError('Failed to copy room code');
+    });
+  };
+
+  // Join your own created room
+  const joinOwnRoom = () => {
+    navigate('game-room', {
+      roomCode: generatedCode,
+      difficulty: difficulty,
+      isCreator: true
     });
   };
 
@@ -287,71 +304,130 @@ const MatchLobby = ({ navigate, user }) => {
                     <Users className="w-8 h-8 text-purple-400" />
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">Create Private Room</h2>
-                  <p className="text-gray-300">Create a room and invite your friends to battle</p>
+                  <p className="text-gray-300">Generate a room code to share with friends</p>
                 </div>
 
-                {/* Difficulty Selection */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Select Difficulty
-                  </label>
-                  <div className="flex justify-center gap-3">
-                    {['Easy', 'Medium', 'Hard'].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() => setDifficulty(level)}
-                        className={`px-4 py-2 rounded-lg transition-all ${
-                          difficulty === level
-                            ? level === 'Easy' ? 'bg-green-600 text-white'
-                              : level === 'Medium' ? 'bg-yellow-600 text-white'
-                              : 'bg-red-600 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Generated Room Code Display */}
-                {generatedCode && (
-                  <div className="mb-6 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
-                    <p className="text-sm text-gray-300 mb-2">Your Room Code:</p>
-                    <div className="flex items-center justify-center gap-3">
-                      <span className="text-2xl font-mono font-bold text-white tracking-wider">
-                        {generatedCode}
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(generatedCode)}
-                        className="p-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors"
-                      >
-                        <Copy className="w-4 h-4 text-white" />
-                      </button>
+                {!roomCreated && (
+                  <>
+                    {/* Difficulty Selection */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-300 mb-3">
+                        Select Difficulty
+                      </label>
+                      <div className="flex justify-center gap-3">
+                        {['Easy', 'Medium', 'Hard'].map((level) => (
+                          <button
+                            key={level}
+                            onClick={() => setDifficulty(level)}
+                            className={`px-4 py-2 rounded-lg transition-all ${
+                              difficulty === level
+                                ? level === 'Easy' ? 'bg-green-600 text-white'
+                                  : level === 'Medium' ? 'bg-yellow-600 text-white'
+                                  : 'bg-red-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      Share this code with your friend to join the battle
-                    </p>
-                  </div>
+
+                    <button
+                      onClick={handleCreateRoom}
+                      disabled={isCreatingRoom || !isConnected}
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:from-gray-600 disabled:to-gray-700 text-white py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                      {isCreatingRoom ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Creating Room...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="w-5 h-5" />
+                          Generate Room Code
+                        </>
+                      )}
+                    </button>
+                  </>
                 )}
 
-                <button
-                  onClick={handleCreateRoom}
-                  disabled={isCreatingRoom || !isConnected}
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:from-gray-600 disabled:to-gray-700 text-white py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                  {isCreatingRoom ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Creating Room...
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="w-5 h-5" />
-                      Create Battle Room
-                    </>
-                  )}
-                </button>
+                {/* Room Created - Show Code and Options */}
+                {roomCreated && generatedCode && (
+                  <div className="space-y-6">
+                    {/* Room Code Display */}
+                    <div className="p-6 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl border border-purple-400/30">
+                      <div className="text-sm text-gray-300 mb-2">🎉 Room Created Successfully!</div>
+                      <div className="text-sm text-purple-300 mb-3">Share this code with friends:</div>
+                      <div className="flex items-center justify-center gap-3 mb-4">
+                        <span className="text-3xl font-mono font-bold text-white tracking-wider bg-gray-900/50 px-4 py-2 rounded-lg">
+                          {generatedCode}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(generatedCode)}
+                          className="p-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors group"
+                          title="Copy room code"
+                        >
+                          <Copy className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        🔗 Friends can join by entering this code in "Join Room"
+                      </div>
+                    </div>
+
+                    {/* Room Info */}
+                    <div className="bg-gray-700/30 rounded-lg p-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="text-center">
+                          <div className="text-gray-400">Difficulty</div>
+                          <div className={`font-semibold ${
+                            difficulty === 'Easy' ? 'text-green-400' :
+                            difficulty === 'Medium' ? 'text-yellow-400' :
+                            'text-red-400'
+                          }`}>
+                            {difficulty}
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-gray-400">Status</div>
+                          <div className="text-blue-400 font-semibold">Waiting for Players</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={joinOwnRoom}
+                        className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Join Room
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(`Join my CodeClash battle! Room code: ${generatedCode}`)}
+                        className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+                      >
+                        <Share2 className="w-4 h-4" />
+                        Share Invite
+                      </button>
+                    </div>
+
+                    {/* Create New Room */}
+                    <button
+                      onClick={() => {
+                        setRoomCreated(false);
+                        setGeneratedCode('');
+                        setSuccess('');
+                      }}
+                      className="w-full text-gray-400 hover:text-white text-sm transition-colors"
+                    >
+                      Create New Room
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -363,7 +439,7 @@ const MatchLobby = ({ navigate, user }) => {
                     <Shield className="w-8 h-8 text-green-400" />
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">Join Private Room</h2>
-                  <p className="text-gray-300">Enter the room code shared by your friend</p>
+                  <p className="text-gray-300">Enter a room code to join the battle</p>
                 </div>
 
                 <div className="mb-6">
@@ -383,16 +459,16 @@ const MatchLobby = ({ navigate, user }) => {
                 <button
                   onClick={handleJoinRoom}
                   disabled={isJoiningRoom || inputCode.length !== 6 || !isConnected}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 mb-6"
                 >
                   {isJoiningRoom ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Joining Room...
+                      Joining Battle...
                     </>
                   ) : (
                     <>
-                      <Shield className="w-5 h-5" />
+                      <UserPlus className="w-5 h-5" />
                       Join Battle
                     </>
                   )}
@@ -400,19 +476,35 @@ const MatchLobby = ({ navigate, user }) => {
 
                 {/* Sample Room Codes for Demo */}
                 <div className="mt-6 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
-                  <p className="text-xs text-blue-300 mb-2">Demo Room Codes (for testing):</p>
+                  <p className="text-xs text-blue-300 mb-3">💡 Demo Room Codes (for testing):</p>
                   <div className="flex justify-center gap-2 text-xs">
                     {['S270DU', 'ABC123', 'XYZ789'].map(code => (
                       <button
                         key={code}
                         onClick={() => setInputCode(code)}
-                        className="px-2 py-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 rounded font-mono transition-colors"
+                        className="px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 rounded-lg font-mono transition-colors"
                       >
                         {code}
                       </button>
                     ))}
                   </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Click any code above to test joining
+                  </p>
                 </div>
+
+                {/* Show generated code if available */}
+                {generatedCode && (
+                  <div className="mt-4 p-3 bg-purple-900/20 border border-purple-700/30 rounded-lg">
+                    <p className="text-xs text-purple-300 mb-2">🎯 Your created room code:</p>
+                    <button
+                      onClick={() => setInputCode(generatedCode)}
+                      className="px-3 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 rounded-lg font-mono transition-colors"
+                    >
+                      {generatedCode}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
