@@ -16,7 +16,7 @@ const app = express();
 const server = http.createServer(app);
 
 const allowedOrigins = [
-  'https://code-clash-tan.vercel.app/',
+  'https://code-clash-tan.vercel.app',
   'https://code-clash-89bb.onrender.com',
   'http://localhost:3000'
 ];
