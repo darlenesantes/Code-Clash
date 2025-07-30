@@ -329,13 +329,10 @@ gameSocket.on('submission_result', onSubmissionResult);
    * Timer effect - handles countdown
    */
   useEffect(() => {
-    console.log('=== USING EFFECT, GAME STATE IS:', gameState);
-    console.log("MATCH START TIME IS:", matchStartTime)
     if (gameState == 'active' && matchStartTime) {
       const totalGameTime = 600; // 10 minutes
 
       const timer = setInterval(() => {
-        console.log("time change");
         const now = Date.now();
         const elapsed = Math.floor((now - matchStartTime) / 1000);
         const remainingTime = Math.max(totalGameTime - elapsed, 0);
