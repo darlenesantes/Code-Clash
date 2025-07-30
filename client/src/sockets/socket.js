@@ -137,6 +137,11 @@ class GameSocket {
       this.emit('opponent_submitted', data);
     });
 
+    this.socket.on('submission_result', (data) => {
+      console.log('🔔 [GameSocket] raw submission_result:', data);
+      this.emit('submission_result', data);
+    });
+    
     this.socket.on('game_ended', (data) => {
       console.log('Game ended:', data);
       this.emit('game_ended', data);

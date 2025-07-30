@@ -207,17 +207,28 @@ socket.on("submit_solution", async ({ roomCode: matchCode, code, language }) => 
       const decoded   = Buffer.from(rawBase64, "base64").toString("utf-8");
       console.log("✅ Decoded Output:\n", decoded);
 
-      const lines     = decoded.split("\n").filter(l => l.trim().length);
-      const allPassed = lines.every(line => line.startsWith("✅"));
+      const resultLines = decoded.split("\n").filter(line => /^✅|^❌/.test(line.trim()));
+      const allPassed = resultLines.length === problem.testCases.length &&
+                  resultLines.every(line => line.trim().startsWith("✅"));
 
+      const winnerId = socket.data.userId;
       io.to(matchCode).emit("submission_result", {
         output: decoded,
         allPassed,
-        winner: allPassed ? socket.data.username : null
+         winner: allPassed ? socket.data.userId   : null
       });
 
       if (allPassed) {
+        const winnerId = socket.data.userId;
+
         socket.to(matchCode).emit("lock_editor");
+
+        io.to(matchCode).emit("game_ended", {
+          winner:      winnerId,
+          reason:      'solution_correct',
+          coinsEarned: 50,
+          xpEarned:    25
+        });
       }
 
     } else if (language === "python") {
@@ -278,11 +289,18 @@ socket.on("submit_solution", async ({ roomCode: matchCode, code, language }) => 
       io.to(matchCode).emit("submission_result", {
         output: formatted,
         allPassed,
-        winner: allPassed ? socket.data.username : null
+        winner: allPassed ? socket.data.userId : null
       });
 
       if (allPassed) {
         socket.to(matchCode).emit("lock_editor");
+        const winnerId = socket.data.userId;
+        io.to(matchCode).emit("game_ended", {
+        winner:      winnerId,
+        reason:      'solution_correct',
+        coinsEarned: 50,
+        xpEarned:    25
+        });
       }
 }
     else if (language === "java") {
@@ -306,7 +324,7 @@ socket.on("submit_solution", async ({ roomCode: matchCode, code, language }) => 
       io.to(matchCode).emit("submission_result", {
         output: formatted,
         allPassed,
-        winner: allPassed ? socket.data.username : null
+        winner: allPassed ? socket.data.userId : null
       });
 
       if (allPassed) {
@@ -326,8 +344,21 @@ socket.on("submit_solution", async ({ roomCode: matchCode, code, language }) => 
       error: err.message
     });
   }
-});
+}
 
+
+);
+// 🔥 Custom: Handle frontend-confirmed winner
+socket.on("game_over", ({ roomCode, winner }) => {
+  console.log(`🛰️ [Server] game_over received — winner: ${winner}, room: ${roomCode}`);
+
+  io.to(roomCode).emit("game_ended", {
+    winner,
+    reason: 'solution_correct',
+    coinsEarned: 50,
+    xpEarned: 25
+  });
+});
 }
 
 

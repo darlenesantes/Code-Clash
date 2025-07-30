@@ -2,10 +2,33 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   ArrowLeft, Play, Send, Flag, Clock, User, 
   CheckCircle, XCircle, Code, MessageCircle,
-  Trophy, Target, Zap, Wifi, WifiOff
+  Trophy, Target, Zap, Wifi, WifiOff, StopCircle
 } from 'lucide-react';
 import Avatar from '../components/ui/Avatar';
 import gameSocket from '../sockets/socket';
+
+function parseTestOutput(output = '') {
+  const re = /([❌✅])\s*Test\s+(\d+):\s*(Passed|Failed)/g;
+  const seen = new Map();
+  let m;
+
+  // Walk the string once, capturing every “❌ Test 1: Failed” or “✅ Test 1: Passed”
+  while ((m = re.exec(output)) !== null) {
+    const emoji  = m[1];
+    const id     = Number(m[2]);
+    const status = m[3];        // "Passed" or "Failed"
+    // Always overwrite so that the *last* occurrence wins (i.e. the ✅ will override the earlier ❌)
+    seen.set(id, {
+      id,
+      passed: status === 'Passed',
+      text:  `Test ${id}: ${status}`
+    });
+  }
+
+  // Return them in numeric order
+  return Array.from(seen.values())
+              .sort((a,b) => a.id - b.id);
+}
 
 
 const GameRoom = ({ navigate, user, roomData }) => {
@@ -20,6 +43,44 @@ const GameRoom = ({ navigate, user, roomData }) => {
   const [gameResult, setGameResult] = useState(null);
   const [submitTimestamp, setSubmitTimestamp] = useState(null);
 
+const onSubmissionResult = useCallback(({ output }) => {
+  // 1) Parsear resultados y mostrar en UI
+  const results = parseTestOutput(output);
+  setTestResults(results);
+  setIsSubmitting(false);
+
+  // 2) Detectar si pasaste el último test
+  const allLocalPassed = output.includes("✅ Test 10: Passed");
+
+  if (allLocalPassed) {
+    // 3) Mostrar modal de victoria LOCALMENTE
+    const myResult = {
+      winner: user.id,
+      reason: 'solution_correct',
+      solveTime: Date.now() - submitTimestamp,
+      coinsEarned: 50,
+      xpEarned: 25
+    };
+    setGameState('completed');
+    setGameResult(myResult);
+
+    // 4) Avisar al servidor para que el otro vea su derrota
+    gameSocket.emit('game_over', {
+      roomCode: roomData.roomCode,
+      winner:   user.id
+    });
+  }
+}, [roomData.roomCode, submitTimestamp, user.id]);
+
+
+
+
+useEffect(() => {
+  gameSocket.on('submission_result', onSubmissionResult);
+  return () => {
+    gameSocket.off('submission_result', onSubmissionResult);
+  };
+}, [onSubmissionResult]);
   
   // Opponent state
   const [opponent, setOpponent] = useState({
@@ -31,7 +92,13 @@ const GameRoom = ({ navigate, user, roomData }) => {
     linesOfCode: 0,
     isConnected: false
   });
-  
+
+  const handleGameEnded = useCallback((data) => {
+    console.log('🛰️ [GameRoom] handleGameEnded llamado con:', data);
+    setGameState("completed");
+    setGameResult(data);
+  }, []);
+
   // Chat state
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -66,6 +133,7 @@ const GameRoom = ({ navigate, user, roomData }) => {
     console.log('=== GAME ROOM INITIALIZATION ===');
     console.log('User:', user);
     console.log('Room Data:', roomData);
+    
     
     // Connect socket if not already connected
     if (!gameSocket.isSocketConnected()) {
@@ -217,7 +285,11 @@ const GameRoom = ({ navigate, user, roomData }) => {
     // GameSocket class events
     gameSocket.on('connection_status', handleConnectionStatus);
     gameSocket.on('match_found', handleMatchFound);
-    gameSocket.on('game_started', handleGameStarted);
+
+    console.log('🛰️ Registrando listener → game_started'); 
+    gameSocket.on('start_game', handleStartGame);
+    console.log('🛰️ Registrando listener → start_game');
+
     gameSocket.on('opponent_joined', handleOpponentJoined);
     gameSocket.on('opponent_left', handleOpponentLeft);
     gameSocket.on('opponent_typing', handleOpponentTyping);
@@ -227,37 +299,6 @@ const GameRoom = ({ navigate, user, roomData }) => {
     gameSocket.on('game_ended', handleGameEnded);
     gameSocket.on('chat_message', handleChatMessage);
     gameSocket.on('error', handleError);
-
-    const onSubmissionResult = ({ output, allPassed, winner }) => {
-  handleSubmissionResult({ output });  // still uses your existing parser
-  setIsSubmitting(false);              // stop the spinner
-  if (allPassed) {
-    setGameState('completed');
-    setGameResult({
-      winner,
-      reason: 'solution_correct',
-      solveTime: Date.now() - submitTimestamp,
-      coinsEarned: 50,
-      xpEarned: 25
-    });
-  }
-};
-
-gameSocket.on('submission_result', onSubmissionResult);
-
-
-    // William's direct socket events
-      const handleSubmissionResult = ({ passed, output }) => {
-        const lines = output.split(/\r?\n/);
-        const results = lines
-          .map(raw => {
-            const m = raw.match(/^(✅|❌)\s*Test\s*(\d+):\s*(.+)$/);
-            return m ? { id: Number(m[2]), passed: m[1] === '✅', text: raw } : null;
-          })
-          .filter(r => r !== null);
-        setTestResults(results);
-        setIsSubmitting(false); // this line is OK to keep here too for fallback
-      };
 
     /**
      * Cleanup function
@@ -297,7 +338,8 @@ gameSocket.on('submission_result', onSubmissionResult);
         clearTimeout(progressTimeoutRef.current);
       }
     };
-  }, [user, roomData]);
+  }, [user, roomData, submitTimestamp]);
+
 
   useEffect(() => {
   if (roomData?.problem) {
@@ -337,7 +379,31 @@ gameSocket.on('submission_result', onSubmissionResult);
     setCode(problem.functionSignature[language] || '');
   }
   }, [language, problem]);
-  
+
+   const handleLockEditor = useCallback(() => {
+    console.log("🔒 [GameRoom] Editor has been locked");
+    setGameState("completed"); // Lock editing
+  }, []);
+
+    const onLockEditor = () => {
+      console.log('🛰️ [GameRoom] event lock_editor fired');
+      handleLockEditor();
+    };
+
+
+    useEffect(() => {
+      console.log('🛰️ Registrando listener → lock_editor');
+      gameSocket.on("lock_editor", onLockEditor);
+
+      return () => {
+        gameSocket.off("lock_editor", onLockEditor); // ✅ Mismo handler
+      };
+    }, [handleLockEditor]);
+
+  useEffect(() => {
+    gameSocket.on("game_ended", handleGameEnded);
+    return () => { gameSocket.off("game_ended", handleGameEnded); };
+  }, [handleGameEnded]);
 
   /*
    * Handle typing indicators and progress updates
@@ -390,6 +456,10 @@ gameSocket.on('submission_result', onSubmissionResult);
    * Handle code submission
    */
   const handleSubmit = async () => {
+    console.log('🛰️ Submit button clicked');
+    console.log('🛰️ Current code:', code);
+    console.log('🛰️ GameState, isSubmitting:', gameState, isSubmitting);
+
     if (!code.trim()) return;
 
     setSubmitTimestamp(Date.now());
@@ -529,7 +599,10 @@ const renderProblemPanel = () => {
         </div>
       </div>
   );
+  
 };
+
+
 
   /**
    * Render code editor panel
@@ -570,7 +643,10 @@ const renderProblemPanel = () => {
           </button>
           
           <button
-            onClick={handleSubmit}
+            onClick={() => {
+              console.log('🛰️ onClick 👉 invoking handleSubmit');
+              handleSubmit();}}
+              
             disabled={isSubmitting || gameState !== 'active' || !code.trim()}
             className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -828,10 +904,10 @@ const renderProblemPanel = () => {
           <div className="bg-gray-800 rounded-2xl p-8 text-center max-w-md mx-4">
             {gameResult.winner === user.id ? (
               <>
-                <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-white mb-2">Victory!</h2>
+                <StopCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                <h2 className="text-3xl font-bold text-white mb-2">STOP!</h2>
                 <p className="text-gray-400 mb-6">
-                  {gameResult.reason === 'solution_correct' ? 'You solved the problem first!' :
+                  {gameResult.reason === 'solution_correct' ? 'Problem was solved' :
                    gameResult.reason === 'opponent_forfeit' ? 'Your opponent forfeited!' :
                    'You won the battle!'}
                 </p>
@@ -842,18 +918,8 @@ const renderProblemPanel = () => {
                   </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4 mb-6 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-green-400">+{gameResult.coinsEarned || 50}</div>
-                    <div className="text-gray-400 text-sm">Coins</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-blue-400">+{gameResult.xpEarned || 25}</div>
-                    <div className="text-gray-400 text-sm">XP</div>
-                  </div>
-                </div>
               </>
-            ) : (
+            ) : gameResult.winner && gameResult.winner !== user.id ? (
               <>
                 <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
                 <h2 className="text-3xl font-bold text-white mb-2">Defeat</h2>
@@ -871,7 +937,10 @@ const renderProblemPanel = () => {
                   </div>
                 )}
               </>
-            )}
+            ):(
+                // Optional fallback, like:
+                <p className="text-white">Waiting for result...</p>
+              )}
 
             <div className="flex gap-3">
               <button
