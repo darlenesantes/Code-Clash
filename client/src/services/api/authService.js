@@ -12,9 +12,12 @@ class AuthService {
   async googleAuth(token) {
     try {
       console.log('AuthService: Sending Google token to backend...');
-      console.log('API URL:', `${this.baseURL}/api/auth/google`);
+      
+      // Fixed: Make console log match actual URL
+      const url = `${this.baseURL}/auth`;
+      console.log('API URL:', url);
 
-      const response = await fetch(`${this.baseURL}/api/auth/google`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -23,6 +26,15 @@ class AuthService {
       });
 
       console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers.get('content-type'));
+
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Non-JSON response received:', textResponse.substring(0, 200));
+        throw new Error('Server returned HTML instead of JSON. Check if the function is deployed.');
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -45,6 +57,13 @@ class AuthService {
         return {
           success: false,
           error: 'Network error. Please check your connection and ensure the server is running.'
+        };
+      }
+
+      if (error.message.includes('HTML instead of JSON')) {
+        return {
+          success: false,
+          error: 'Function not found. Please check if /.netlify/functions/auth is deployed.'
         };
       }
 

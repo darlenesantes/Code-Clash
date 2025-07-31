@@ -1,0 +1,12 @@
+[build]
+  functions = "netlify/functions"
+  publish = "client/build"
+  command = "npm --workspace codeclash-client run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
