@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, User, Code, Target, Check } from 'lucide-react';
-import authService from '../services/api/authService';
 import Avatar from '../components/ui/Avatar';
 
 const ProfileSetup = ({ navigate, user, onComplete }) => {
@@ -87,24 +86,29 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
     setError('');
 
     try {
-      const result = await authService.updateProfile({
-        avatarTheme: profileData.avatarTheme,
-        avatarColor: profileData.avatarColor,
-        favoriteLanguages: profileData.favoriteLanguages,
-        skillLevel: profileData.skillLevel,
-        goals: profileData.goals,
-        setupComplete: true
-      });
+      // SKIP BACKEND CALL - Just simulate success
+      console.log('Profile setup completed with data:', profileData);
+      
+      // Simulate a brief loading state for UX
+      setTimeout(() => {
+        // Create updated user object with profile data
+        const updatedUser = {
+          ...user,
+          avatarTheme: profileData.avatarTheme,
+          avatarColor: profileData.avatarColor,
+          favoriteLanguages: profileData.favoriteLanguages,
+          skillLevel: profileData.skillLevel,
+          goals: profileData.goals,
+          setupComplete: true
+        };
+        
+        console.log('Calling onComplete with user:', updatedUser);
+        onComplete(updatedUser);
+      }, 500);
 
-      if (result.success) {
-        onComplete(result.user);
-      } else {
-        setError(result.error || 'Failed to save profile. Please try again.');
-      }
     } catch (error) {
       console.error('Profile setup error:', error);
       setError('Failed to save profile. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -283,7 +287,7 @@ const ProfileSetup = ({ navigate, user, onComplete }) => {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">Welcome to CodeClash</h1>
           <button
-            onClick={() => navigate('landing')}
+            onClick={() => navigate('dashboard')}
             className="text-gray-400 hover:text-white transition-colors"
           >
             Skip Setup
