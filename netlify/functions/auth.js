@@ -1,8 +1,6 @@
 const https = require('https');
 
 exports.handler = async (event, context) => {
-  console.log('Auth function called:', event.httpMethod);
-  
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -10,7 +8,6 @@ exports.handler = async (event, context) => {
     'Content-Type': 'application/json',
   };
 
-  // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -23,28 +20,20 @@ exports.handler = async (event, context) => {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ 
-            success: false,
-            error: 'No token provided' 
-          }),
+          body: JSON.stringify({ success: false, error: 'No token provided' }),
         };
       }
 
-      // Verify Google token
       const userInfo = await verifyGoogleToken(token);
       
       if (!userInfo) {
         return {
           statusCode: 401,
           headers,
-          body: JSON.stringify({ 
-            success: false,
-            error: 'Invalid token' 
-          }),
+          body: JSON.stringify({ success: false, error: 'Invalid token' }),
         };
       }
 
-      // Return user with your hardcoded gaming stats
       const user = {
         id: userInfo.sub,
         name: userInfo.name,
@@ -63,20 +52,13 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({
-          success: true,
-          user: user
-        }),
+        body: JSON.stringify({ success: true, user: user }),
       };
     } catch (error) {
-      console.error('Auth error:', error);
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ 
-          success: false,
-          error: 'Authentication failed' 
-        }),
+        body: JSON.stringify({ success: false, error: 'Authentication failed' }),
       };
     }
   }
@@ -91,7 +73,6 @@ exports.handler = async (event, context) => {
 function verifyGoogleToken(token) {
   return new Promise((resolve) => {
     const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${token}`;
-    
     https.get(url, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -102,7 +83,7 @@ function verifyGoogleToken(token) {
             return;
           }
           const tokenInfo = JSON.parse(data);
-          const expectedClientId = process.env.GOOGLE_CLIENT_ID || process.env.REACT_APP_GOOGLE_CLIENT_ID;
+          const expectedClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
           
           if (tokenInfo.aud === expectedClientId) {
             resolve(tokenInfo);
