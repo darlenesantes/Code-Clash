@@ -1,681 +1,693 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ArrowLeft, Play, Send, Clock, User, 
-  CheckCircle, XCircle, Code, MessageCircle,
-  Trophy, Target, Zap, Settings, Copy, 
-  RotateCcw, Download, Users, Crown,
-  Wifi, WifiOff, Swords
-} from 'lucide-react';
-
-import Avatar from '../components/ui/Avatar';
-import VictoryPopup from '../components/VictoryPopup';
+import { ArrowLeft, Play, Send, Clock, User, CheckCircle, XCircle, Code, MessageCircle, Trophy, Target, Zap, Settings, Copy, RotateCcw, Download, Users, Crown, Wifi, WifiOff, Swords, Monitor, Activity } from 'lucide-react';
+import VictoryPopup from '../components/VictoryPopup'; 
 
 const GameRoom = ({ 
   navigate, 
-  user, 
   roomCode, 
-  difficulty = 'Easy',
-  problem = null,
-  onUpdateProfile // Add this prop for profile updates
+  language = 'javascript', 
+  user = { name: 'Player1', avatar: null },
+  onUpdateUser // CRITICAL: This comes from App.jsx for victory updates
 }) => {
-  // Game state
-  const [gameStarted, setGameStarted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 minutes
-  const [opponent, setOpponent] = useState(null);
-  const [showReady, setShowReady] = useState(false);
-  const [readyCountdown, setReadyCountdown] = useState(5);
-  const [isReady, setIsReady] = useState(false);
-  const [opponentReady, setOpponentReady] = useState(false);
-  
-  // Victory popup states
-  const [showVictoryPopup, setShowVictoryPopup] = useState(false);
-  const [gameComplete, setGameComplete] = useState(false);
-  const [isFirstWin, setIsFirstWin] = useState(false);
-
-  // Code editor state
-  const [code, setCode] = useState('');
-  const [language, setLanguage] = useState('javascript');
-  const [fontSize, setFontSize] = useState(14);
-  const [showLineNumbers, setShowLineNumbers] = useState(true);
-  const [testResults, setTestResults] = useState(null);
-  const [isRunning, setIsRunning] = useState(false);
-
-  // Chat and progress
+  const [code, setCode] = useState('// Start coding here...\n');
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [opponentProgress, setOpponentProgress] = useState(0);
-  const [opponentTyping, setOpponentTyping] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(15 * 60); // 15 minutes
   const [myProgress, setMyProgress] = useState(0);
+  const [opponentProgress, setOpponentProgress] = useState(0);
+  const [gameStatus, setGameStatus] = useState('active'); // active, finished, victory, defeat
+  const [showVictory, setShowVictory] = useState(false);
+  const [testResults, setTestResults] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connected');
+  const [selectedLanguage, setSelectedLanguage] = useState(language);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  
+  const messagesEndRef = useRef(null);
+  const codeEditorRef = useRef(null);
 
-  // Current problem - fallback if none provided
-  const [currentProblem, setCurrentProblem] = useState(problem || {
-    id: 1,
-    title: "Two Sum",
-    difficulty: "Easy",
-    description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.",
-    examples: [
-      {
-        input: "nums = [2,7,11,15], target = 9",
-        output: "[0,1]",
-        explanation: "Because nums[0] + nums[1] == 9, we return [0, 1]."
-      },
-      {
-        input: "nums = [3,2,4], target = 6", 
-        output: "[1,2]",
-        explanation: "Because nums[1] + nums[2] == 6, we return [1, 2]."
-      }
-    ],
-    testCases: [
-      { input: [[2,7,11,15], 9], expected: [0,1] },
-      { input: [[3,2,4], 6], expected: [1,2] },
-      { input: [[3,3], 6], expected: [0,1] }
-    ]
-  });
-
-  const codeRef = useRef(null);
-
-  // Demo opponent data
-  const demoOpponents = [
-    {
-      id: 'demo_001',
-      displayName: 'CodeNinja',
-      picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=CodeNinja',
-      wins: 247,
-      rank: 'Gold II'
-    },
-    {
-      id: 'demo_002', 
-      displayName: 'ByteBeast',
-      picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ByteBeast',
-      wins: 189,
-      rank: 'Silver I'
-    },
-    {
-      id: 'demo_003',
-      displayName: 'AlgoWizard',
-      picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlgoWizard',
-      wins: 312,
-      rank: 'Platinum III'
-    }
+  const languages = [
+    { id: 'javascript', name: 'JavaScript', color: 'text-yellow-400', starter: '// Start coding here...\nfunction twoSum(nums, target) {\n    \n}' },
+    { id: 'python', name: 'Python', color: 'text-blue-400', starter: '# Start coding here...\ndef two_sum(nums, target):\n    pass' },
+    { id: 'java', name: 'Java', color: 'text-orange-400', starter: '// Start coding here...\npublic int[] twoSum(int[] nums, int target) {\n    \n}' },
+    { id: 'cpp', name: 'C++', color: 'text-purple-400', starter: '// Start coding here...\nvector<int> twoSum(vector<int>& nums, int target) {\n    \n}' },
+    { id: 'csharp', name: 'C#', color: 'text-green-400', starter: '// Start coding here...\npublic int[] TwoSum(int[] nums, int target) {\n    \n}' },
+    { id: 'go', name: 'Go', color: 'text-cyan-400', starter: '// Start coding here...\nfunc twoSum(nums []int, target int) []int {\n    \n}' },
+    { id: 'rust', name: 'Rust', color: 'text-red-400', starter: '// Start coding here...\nimpl Solution {\n    pub fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32> {\n        \n    }\n}' },
+    { id: 'typescript', name: 'TypeScript', color: 'text-blue-300', starter: '// Start coding here...\nfunction twoSum(nums: number[], target: number): number[] {\n    \n}' }
   ];
 
-  // Language templates
-  const languageTemplates = {
-    javascript: `function twoSum(nums, target) {
-    // Your solution here
-    
-}`,
-    python: `def two_sum(nums, target):
-    # Your solution here
-    pass`,
-    java: `public int[] twoSum(int[] nums, int target) {
-    // Your solution here
-    return new int[0];
-}`,
-    cpp: `vector<int> twoSum(vector<int>& nums, int target) {
-    // Your solution here
-    return {};
-}`
+  const handleLanguageChange = (languageId) => {
+    const newLang = languages.find(lang => lang.id === languageId);
+    if (newLang) {
+      setSelectedLanguage(languageId);
+      setCode(newLang.starter);
+      setShowLanguageDropdown(false);
+    }
   };
 
-  // Add demo opponent after 5 seconds
+  const currentLanguage = languages.find(lang => lang.id === selectedLanguage) || languages[0];
+  
+  // Opponent AI messages for different phases
+  const opponentMessages = {
+    start: [
+      "Ready for this battle? Good luck!",
+      "Let's see who's the better coder",
+      "This looks like a fun challenge",
+      "May the best algorithm win!",
+      "gl hf! 💪",
+      "Ready when you are"
+    ],
+    midGame: [
+      "hmm this is tricky",
+      "taking longer than expected",
+      "almost got the logic working",
+      "debugging some edge cases",
+      "getting closer...",
+      "this problem has some gotchas",
+      "need to think about this more",
+      "working through the solution"
+    ],
+    nearEnd: [
+      "Time is running out!",
+      "Almost there...",
+      "final optimizations needed",
+      "this is going to be close",
+      "race against time now!",
+      "cutting it close here"
+    ],
+    victory: [
+      "GG! Well played",
+      "nice work, you got me",
+      "well done! 👏",
+      "you beat me to it",
+      "great job there",
+      "gg wp",
+      "respect! good solution"
+    ],
+    defeat: [
+      "got it! gg",
+      "phew, that was close",
+      "good effort though",
+      "better luck next time",
+      "wp, close battle"
+    ],
+    responses: [
+      "thanks, you too!",
+      "agreed",
+      "yeah definitely",
+      "cool thanks",
+      "good point",
+      "exactly",
+      "for sure",
+      "same here",
+      "yep",
+      "totally",
+      "nice",
+      "true that",
+      "agreed 100%",
+      "you got it"
+    ]
+  };
+
+  // Sample problem
+  const problem = {
+    title: "Two Sum Challenge",
+    difficulty: "EASY",
+    description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.",
+    examples: [
+      { input: "nums = [2,7,11,15], target = 9", output: "[0,1]" },
+      { input: "nums = [3,2,4], target = 6", output: "[1,2]" }
+    ],
+    testCases: [
+      { input: "[2,7,11,15], 9", expected: "[0,1]" },
+      { input: "[3,2,4], 6", expected: "[1,2]" },
+      { input: "[3,3], 6", expected: "[0,1]" }
+    ]
+  };
+
+  // Initialize chat with pre-battle message
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!opponent) {
-        const randomOpponent = demoOpponents[Math.floor(Math.random() * demoOpponents.length)];
-        setOpponent(randomOpponent);
-        
-        // Show ready screen after opponent joins
-        setTimeout(() => {
-          setShowReady(true);
-        }, 1000);
+    const initialMessage = opponentMessages.start[Math.floor(Math.random() * opponentMessages.start.length)];
+    setMessages([{
+      id: 1,
+      sender: 'opponent',
+      text: initialMessage,
+      timestamp: new Date()
+    }]);
+  }, []);
 
-        // Add system message
-        setMessages(prev => [...prev, {
-          id: Date.now(),
-          type: 'system',
-          message: `${randomOpponent.displayName} joined the battle!`,
-          timestamp: new Date().toLocaleTimeString()
-        }]);
-
-        // Simulate opponent getting ready after 2 seconds
-        setTimeout(() => {
-          setOpponentReady(true);
-        }, 2000);
-      }
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [opponent]);
-
-  // Set initial code template
+  // Timer countdown
   useEffect(() => {
-    setCode(languageTemplates[language] || '');
-  }, [language]);
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 0) {
+          setGameStatus('finished');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  // Ready countdown effect
-  useEffect(() => {
-    if (showReady && isReady && opponentReady && readyCountdown > 0) {
-      const timer = setTimeout(() => {
-        setReadyCountdown(prev => prev - 1);
-      }, 1000);
-
-      if (readyCountdown === 1) {
-        setTimeout(() => {
-          setShowReady(false);
-          setGameStarted(true);
-        }, 1000);
-      }
-
-      return () => clearTimeout(timer);
-    }
-  }, [showReady, isReady, opponentReady, readyCountdown]);
-
-  // Game timer
-  useEffect(() => {
-    let timer;
-    if (gameStarted && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-    }
     return () => clearInterval(timer);
-  }, [gameStarted, timeLeft]);
+  }, []);
 
-  // Calculate progress based on code length
+  // Opponent progress simulation with realistic backtracking
   useEffect(() => {
-    const progress = Math.min((code.length / 200) * 100, 100);
-    setMyProgress(progress);
+    let progressCount = 0;
+    
+    const progressTimer = setInterval(() => {
+      if (gameStatus === 'active' && opponentProgress < 100) {
+        setOpponentProgress(prev => {
+          progressCount++;
+          
+          // Realistic backtracking: go back 5-15% once every 7-10 increments
+          if (progressCount % (7 + Math.floor(Math.random() * 4)) === 0 && prev > 20) {
+            const backtrack = 5 + Math.random() * 10; // 5-15% back
+            return Math.max(prev - backtrack, 0);
+          }
+          
+          const increment = Math.random() * 3 + 1; // 1-4% per interval
+          const newProgress = Math.min(prev + increment, 100);
+          
+          // Trigger opponent messages based on progress
+          if (newProgress > 30 && newProgress < 35 && prev <= 30) {
+            sendOpponentMessage('midGame');
+          } else if (newProgress > 80 && newProgress < 85 && prev <= 80) {
+            sendOpponentMessage('nearEnd');
+          } else if (newProgress >= 100 && prev < 100) {
+            setGameStatus('defeat');
+            setShowVictory(true);
+            sendOpponentMessage('defeat');
+          }
+          
+          return newProgress;
+        });
+      }
+    }, 2000 + Math.random() * 3000); // Random interval 2-5 seconds
 
-    // Simulate opponent progress
-    if (gameStarted && opponent) {
-      const randomProgress = Math.min(myProgress + Math.random() * 20 - 10, 100);
-      setOpponentProgress(Math.max(0, randomProgress));
+    return () => clearInterval(progressTimer);
+  }, [gameStatus, opponentProgress]);
+
+  // Calculate my progress based on code
+  useEffect(() => {
+    const calculateProgress = () => {
+      if (!code || code.trim() === '// Start coding here...' || code.trim() === '') {
+        return 0;
+      }
+
+      let progress = 0;
+      const lines = code.split('\n').filter(line => line.trim() !== '');
+      
+      // Basic structure points
+      if (code.includes('function') || code.includes('const') || code.includes('let')) progress += 10;
+      if (code.includes('for') || code.includes('while') || code.includes('forEach')) progress += 20;
+      if (code.includes('if') || code.includes('else')) progress += 15;
+      if (code.includes('return')) progress += 25;
+      
+      // Content-based scoring
+      progress += Math.min(lines.length * 3, 30); // Up to 30 points for code length
+      
+      // Solution-specific scoring
+      if (code.includes('target') && code.includes('nums')) progress += 10;
+      if (code.includes('[') && code.includes(']')) progress += 10;
+      
+      // Complete solution detection
+      if (code.includes('return [') && (code.includes('i') || code.includes('0')) && (code.includes('j') || code.includes('1'))) {
+        progress = 100;
+        if (myProgress < 100) {
+          setGameStatus('victory');
+          setShowVictory(true);
+          sendOpponentMessage('victory');
+        }
+      }
+      
+      return Math.min(progress, 100);
+    };
+
+    const newProgress = calculateProgress();
+    setMyProgress(newProgress);
+  }, [code, myProgress]);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const sendOpponentMessage = (phase) => {
+    const messageList = opponentMessages[phase];
+    const randomMessage = messageList[Math.floor(Math.random() * messageList.length)];
+    
+    setTimeout(() => {
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        sender: 'opponent',
+        text: randomMessage,
+        timestamp: new Date()
+      }]);
+    }, 1000 + Math.random() * 2000);
+  };
+
+  const handleSendMessage = () => {
+    if (newMessage.trim()) {
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        sender: 'me',
+        text: newMessage,
+        timestamp: new Date()
+      }]);
+      setNewMessage('');
+      
+      // Trigger opponent response
+      setTimeout(() => {
+        const response = opponentMessages.responses[Math.floor(Math.random() * opponentMessages.responses.length)];
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          sender: 'opponent',
+          text: response,
+          timestamp: new Date()
+        }]);
+      }, 2000 + Math.random() * 3000);
     }
-  }, [code, gameStarted, opponent, myProgress]);
+  };
 
-  // Format time display
+  const handleRunTests = () => {
+    // Simulate test running
+    setTestResults('running');
+    
+    setTimeout(() => {
+      const hasBasicStructure = code.includes('return') && code.length > 50;
+      const hasCompleteLogic = code.includes('return [') && (code.includes('i') || code.includes('j'));
+      
+      if (hasCompleteLogic) {
+        setTestResults({
+          status: 'passed',
+          passed: 3,
+          total: 3,
+          details: [
+            { input: "[2,7,11,15], 9", expected: "[0,1]", actual: "[0,1]", passed: true },
+            { input: "[3,2,4], 6", expected: "[1,2]", actual: "[1,2]", passed: true },
+            { input: "[3,3], 6", expected: "[0,1]", actual: "[0,1]", passed: true }
+          ]
+        });
+      } else if (hasBasicStructure) {
+        setTestResults({
+          status: 'partial',
+          passed: 1,
+          total: 3,
+          details: [
+            { input: "[2,7,11,15], 9", expected: "[0,1]", actual: "[0,1]", passed: true },
+            { input: "[3,2,4], 6", expected: "[1,2]", actual: "undefined", passed: false },
+            { input: "[3,3], 6", expected: "[0,1]", actual: "undefined", passed: false }
+          ]
+        });
+      } else {
+        setTestResults({
+          status: 'failed',
+          passed: 0,
+          total: 3,
+          details: [
+            { input: "[2,7,11,15], 9", expected: "[0,1]", actual: "Error", passed: false },
+            { input: "[3,2,4], 6", expected: "[1,2]", actual: "Error", passed: false },
+            { input: "[3,3], 6", expected: "[0,1]", actual: "Error", passed: false }
+          ]
+        });
+      }
+    }, 2000);
+  };
+
+  const handleSubmit = () => {
+    if (myProgress >= 100) {
+      setGameStatus('victory');
+      setShowVictory(true);
+    } else {
+      // Show submission confirmation
+      const confirmed = window.confirm('Are you sure you want to submit? Your solution may not be complete.');
+      if (confirmed) {
+        setGameStatus('finished');
+        setShowVictory(true);
+      }
+    }
+  };
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Handle language change
-  const handleLanguageChange = (newLanguage) => {
-    setLanguage(newLanguage);
-    setCode(languageTemplates[newLanguage] || '');
-  };
-
-  // Handle test run with victory detection
-  const handleRunTests = () => {
-    setIsRunning(true);
-    
-    // Simulate test execution
-    setTimeout(() => {
-      const passed = Math.random() > 0.3; // 70% pass rate for demo
-      const testResults = {
-        passed,
-        passedTests: passed ? currentProblem.testCases.length : Math.floor(Math.random() * currentProblem.testCases.length),
-        totalTests: currentProblem.testCases.length,
-        output: passed ? 'All tests passed!' : 'Some tests failed. Check your logic.',
-        executionTime: Math.floor(Math.random() * 100) + 50
-      };
-      
-      setTestResults(testResults);
-      setIsRunning(false);
-      
-      // Check for victory (all tests passed)
-      if (testResults.passed && testResults.passedTests === currentProblem.testCases.length) {
-        setTimeout(() => {
-          // Check if this is user's first win (you can track this in user data)
-          const firstWin = !user.wins || user.wins === 0;
-          setIsFirstWin(firstWin);
-          setGameComplete(true);
-          setShowVictoryPopup(true);
-        }, 1000); // Small delay for dramatic effect
-      }
-    }, 2000);
-  };
-
-  // Handle chat message
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: Date.now(),
-        type: 'user',
-        sender: user.displayName,
-        message: newMessage,
-        timestamp: new Date().toLocaleTimeString()
-      };
-      setMessages(prev => [...prev, message]);
-      setNewMessage('');
-
-      // Simulate opponent response
-      setTimeout(() => {
-        const responses = [
-          'Good luck!', 'Nice approach!', 'Tricky problem!', 
-          'Almost got it!', 'Great solution!', 'Let\'s go!'
-        ];
-        const response = {
-          id: Date.now() + 1,
-          type: 'opponent',
-          sender: opponent?.displayName || 'Opponent',
-          message: responses[Math.floor(Math.random() * responses.length)],
-          timestamp: new Date().toLocaleTimeString()
-        };
-        setMessages(prev => [...prev, response]);
-      }, 1000 + Math.random() * 2000);
-    }
-  };
-
-  // Victory handling functions
-  const handleVictoryClose = () => {
-    setShowVictoryPopup(false);
-    // Navigate back to dashboard
-    navigate('dashboard');
-  };
-
-  const gameStats = {
-    completionTime: formatTime(30 * 60 - timeLeft), // Calculate actual completion time
-    testsPassedFirst: true, // Track if they got it right on first try
-    accuracy: 100,
-    difficulty: difficulty
-  };
-
-  const rewards = {
-    coins: isFirstWin ? 100 : 75,
-    xp: isFirstWin ? 150 : 100,
-    rankPoints: isFirstWin ? 50 : 25,
-    achievements: isFirstWin ? ['First Victory'] : []
-  };
-
-  // Ready Screen Component
-  if (showReady) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
-        <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl p-8 border border-gray-700 shadow-2xl max-w-2xl w-full mx-4">
-          <div className="text-center">
-            <div className="flex justify-center mb-6">
-              <div className="p-4 bg-blue-500/20 rounded-full border border-blue-500/30">
-                <Swords className="w-12 h-12 text-blue-400" />
-              </div>
-            </div>
-            
-            <h1 className="text-3xl font-bold text-white mb-2">Battle Ready?</h1>
-            <p className="text-gray-300 mb-8">Prepare for competitive coding combat!</p>
-            
-            {/* Players */}
-            <div className="flex justify-between items-center mb-8">
-              <div className="text-center">
-                <Avatar src={user.picture} size="large" className="mb-3" />
-                <p className="text-white font-medium">{user.displayName}</p>
-                <p className="text-blue-400 text-sm">You</p>
-                {isReady ? (
-                  <div className="flex items-center justify-center gap-1 mt-2">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    <span className="text-green-400 text-sm">Ready</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setIsReady(true)}
-                    className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                  >
-                    I'm Ready!
-                  </button>
-                )}
-              </div>
-              
-              <div className="text-6xl text-blue-400">⚔️</div>
-              
-              <div className="text-center">
-                <Avatar src={opponent?.picture} size="large" className="mb-3" />
-                <p className="text-white font-medium">{opponent?.displayName}</p>
-                <p className="text-purple-400 text-sm">{opponent?.rank}</p>
-                {opponentReady ? (
-                  <div className="flex items-center justify-center gap-1 mt-2">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    <span className="text-green-400 text-sm">Ready</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-1 mt-2">
-                    <Clock className="w-4 h-4 text-yellow-400 animate-spin" />
-                    <span className="text-yellow-400 text-sm">Getting ready...</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Countdown */}
-            {isReady && opponentReady && (
-              <div className="text-center">
-                <div className="text-6xl font-bold text-white mb-4 animate-pulse">
-                  {readyCountdown}
-                </div>
-                <p className="text-gray-300">Battle starts in...</p>
-              </div>
-            )}
-            
-            {/* Problem Preview */}
-            <div className="mt-8 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
-              <h3 className="text-lg font-semibold text-white mb-2">
-                Problem: {currentProblem.title}
-              </h3>
-              <div className="flex items-center justify-center gap-4 text-sm">
-                <span className={`px-2 py-1 rounded ${
-                  difficulty === 'Easy' ? 'bg-green-500/20 text-green-400' :
-                  difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                  'bg-red-500/20 text-red-400'
-                }`}>
-                  {difficulty}
-                </span>
-                <span className="text-gray-400">•</span>
-                <span className="text-gray-300">Room: {roomCode}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Waiting screen
-  if (!opponent) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
-        <div className="p-6">
-          <button
-            onClick={() => navigate('dashboard')}
-            className="inline-flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </button>
-        </div>
-        
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <div className="text-center">
-            <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-6"></div>
-            <h2 className="text-2xl font-bold text-white mb-2">Waiting for Opponent</h2>
-            <p className="text-gray-300 mb-4">Room Code: <span className="font-mono text-blue-400">{roomCode}</span></p>
-            <p className="text-gray-400">Demo opponent will join in a few seconds...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Main game interface
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4">
+      <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50 px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center space-x-4">
             <button
-              onClick={() => navigate('dashboard')}
-              className="text-gray-400 hover:text-white transition-colors"
+              onClick={() => navigate('battle-arena')}
+              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
+              <span>Back to Arena</span>
             </button>
-            <h1 className="text-xl font-bold">{currentProblem.title}</h1>
-            <span className={`px-2 py-1 rounded text-sm ${
-              difficulty === 'Easy' ? 'bg-green-500/20 text-green-400' :
-              difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
-              'bg-red-500/20 text-red-400'
-            }`}>
-              {difficulty}
-            </span>
+            <div className="flex items-center space-x-2">
+              <Swords className="w-5 h-5 text-orange-400" />
+              <span className="text-white font-bold">Room: {roomCode}</span>
+            </div>
           </div>
           
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-2">
               <Clock className="w-5 h-5 text-blue-400" />
-              <span className="font-mono text-lg">{formatTime(timeLeft)}</span>
+              <span className="text-white font-mono text-lg font-bold">
+                {formatTime(timeRemaining)}
+              </span>
             </div>
-            <div className="text-sm text-gray-400">
-              Room: {roomCode}
+            <div className={`flex items-center space-x-2 px-3 py-1 rounded-lg ${
+              connectionStatus === 'connected' 
+                ? 'bg-green-500/20 border border-green-500/30' 
+                : 'bg-red-500/20 border border-red-500/30'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                connectionStatus === 'connected' ? 'bg-green-400' : 'bg-red-400'
+              } animate-pulse`}></div>
+              <span className={`text-sm font-medium ${
+                connectionStatus === 'connected' ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {connectionStatus === 'connected' ? 'CONNECTED' : 'RECONNECTING'}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="flex h-[calc(100vh-80px)]">
-        {/* Left Panel - Problem & Code */}
-        <div className="flex-1 flex flex-col">
-          {/* Problem Description */}
-          <div className="bg-gray-800 p-6 border-b border-gray-700 h-1/3 overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-4">{currentProblem.title}</h2>
-            <div className="text-gray-300 mb-4 whitespace-pre-line">
-              {currentProblem.description}
-            </div>
-            
-            {currentProblem.examples.map((example, index) => (
-              <div key={index} className="mb-4 bg-gray-700/50 p-3 rounded">
-                <p className="font-medium text-white mb-1">Example {index + 1}:</p>
-                <p className="text-gray-300 font-mono text-sm">Input: {example.input}</p>
-                <p className="text-gray-300 font-mono text-sm">Output: {example.output}</p>
-                {example.explanation && (
-                  <p className="text-gray-400 text-sm mt-1">Explanation: {example.explanation}</p>
-                )}
+        {/* Left Panel - Problem & Progress */}
+        <div className="w-1/2 border-r border-gray-700/50 flex flex-col">
+          {/* Problem Statement */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-white">{problem.title}</h2>
+                <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg font-bold text-sm border border-green-500/30">
+                  {problem.difficulty}
+                </span>
               </div>
-            ))}
+              <p className="text-gray-300 leading-relaxed mb-6">{problem.description}</p>
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-white">Examples:</h3>
+                {problem.examples.map((example, index) => (
+                  <div key={index} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
+                    <div className="text-sm text-gray-400 mb-1">Input:</div>
+                    <div className="text-cyan-400 font-mono mb-2">{example.input}</div>
+                    <div className="text-sm text-gray-400 mb-1">Output:</div>
+                    <div className="text-green-400 font-mono">{example.output}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-
-          {/* Code Editor */}
-          <div className="flex-1 flex flex-col bg-gray-900">
-            {/* Editor Controls */}
-            <div className="bg-gray-800 p-3 border-b border-gray-700 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <select
-                  value={language}
-                  onChange={(e) => handleLanguageChange(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-white"
-                >
-                  <option value="javascript">JavaScript</option>
-                  <option value="python">Python</option>
-                  <option value="java">Java</option>
-                  <option value="cpp">C++</option>
-                </select>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setFontSize(Math.max(12, fontSize - 1))}
-                    className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+          
+          {/* Progress Bars */}
+          <div className="p-6 bg-gray-800/30 border-t border-gray-700/50">
+            <div className="space-y-4">
+              {/* My Progress */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-blue-400" />
+                    <span className="text-white font-medium">You</span>
+                  </div>
+                  <span className="text-blue-400 font-bold">{Math.round(myProgress)}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-3">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-300 relative overflow-hidden"
+                    style={{ width: `${myProgress}%` }}
                   >
-                    A-
-                  </button>
-                  <span className="text-sm text-gray-400">{fontSize}px</span>
-                  <button
-                    onClick={() => setFontSize(Math.min(20, fontSize + 1))}
-                    className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
-                  >
-                    A+
-                  </button>
+                    <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCode(languageTemplates[language])}
-                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm flex items-center gap-1"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Reset
-                </button>
-                <button
-                  onClick={handleRunTests}
-                  disabled={isRunning}
-                  className="px-4 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-sm flex items-center gap-1"
-                >
-                  {isRunning ? (
-                    <>
-                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-3 h-3" />
-                      Run Tests
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Code Area */}
-            <div className="flex-1 relative">
-              <textarea
-                ref={codeRef}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full h-full bg-gray-900 text-white p-4 font-mono resize-none border-none outline-none"
-                style={{ fontSize: `${fontSize}px` }}
-                placeholder="Write your solution here..."
-              />
-            </div>
-
-            {/* Test Results */}
-            {testResults && (
-              <div className="bg-gray-800 border-t border-gray-700 p-4">
+              {/* Opponent Progress */}
+              <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">Test Results</span>
-                  <span className={`text-sm ${testResults.passed ? 'text-green-400' : 'text-red-400'}`}>
-                    {testResults.passedTests}/{testResults.totalTests} passed
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-red-400" />
+                    <span className="text-white font-medium">Opponent</span>
+                  </div>
+                  <span className="text-red-400 font-bold">{Math.round(opponentProgress)}%</span>
                 </div>
-                <div className={`p-3 rounded ${testResults.passed ? 'bg-green-900/20 border border-green-700' : 'bg-red-900/20 border border-red-700'}`}>
-                  <p className={`text-sm ${testResults.passed ? 'text-green-300' : 'text-red-300'}`}>
-                    {testResults.output}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Execution time: {testResults.executionTime}ms
-                  </p>
+                <div className="w-full bg-gray-700 rounded-full h-3">
+                  <div 
+                    className="bg-gradient-to-r from-red-500 to-orange-500 h-3 rounded-full transition-all duration-300 relative overflow-hidden"
+                    style={{ width: `${opponentProgress}%` }}
+                  >
+                    <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Right Panel - Opponent & Chat */}
-        <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col">
-          {/* Opponent Info */}
-          <div className="p-4 border-b border-gray-700">
-            <div className="flex items-center gap-3 mb-3">
-              <Avatar src={opponent.picture} size="medium" />
-              <div>
-                <p className="font-medium">{opponent.displayName}</p>
-                <p className="text-sm text-gray-400">{opponent.rank}</p>
+        {/* Right Panel - Code Editor & Chat */}
+        <div className="w-1/2 flex flex-col">
+          {/* Code Editor */}
+          <div className="flex-1 flex flex-col">
+            <div className="bg-gray-800/50 px-4 py-2 border-b border-gray-700/50 flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Code className="w-4 h-4 text-purple-400" />
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                      className={`flex items-center space-x-2 px-3 py-1 rounded-lg transition-colors ${currentLanguage.color} hover:bg-gray-700/50`}
+                    >
+                      <span className="font-medium">{currentLanguage.name}</span>
+                      <svg className={`w-4 h-4 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {showLanguageDropdown && (
+                      <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-40">
+                        {languages.map((lang) => (
+                          <button
+                            key={lang.id}
+                            onClick={() => handleLanguageChange(lang.id)}
+                            className={`w-full text-left px-3 py-2 hover:bg-gray-700 transition-colors ${lang.color} ${
+                              selectedLanguage === lang.id ? 'bg-gray-700' : ''
+                            }`}
+                          >
+                            {lang.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="ml-auto">
-                <Wifi className="w-4 h-4 text-green-400" />
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={handleRunTests}
+                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                >
+                  <Play className="w-4 h-4" />
+                  <span>Run Tests</span>
+                </button>
+                <button 
+                  onClick={handleSubmit}
+                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Submit</span>
+                </button>
               </div>
             </div>
             
-            {/* Progress Bars */}
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Your Progress</span>
-                  <span>{Math.round(myProgress)}%</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${myProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Opponent Progress</span>
-                  <span>{Math.round(opponentProgress)}%</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${opponentProgress}%` }}
-                  ></div>
-                </div>
-              </div>
+            <div className="flex-1 relative">
+              <textarea
+                ref={codeEditorRef}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="w-full h-full bg-gray-900 text-white p-4 font-mono text-sm resize-none focus:outline-none"
+                placeholder="// Start coding here..."
+                spellCheck="false"
+              />
             </div>
-          </div>
-
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="space-y-3">
-              {messages.map((message) => (
-                <div key={message.id} className={`${
-                  message.type === 'system' ? 'text-center' :
-                  message.type === 'user' ? 'text-right' : 'text-left'
-                }`}>
-                  {message.type === 'system' ? (
-                    <p className="text-xs text-gray-400 bg-gray-700/50 rounded px-2 py-1 inline-block">
-                      {message.message}
-                    </p>
-                  ) : (
-                    <div className={`inline-block max-w-[80%] p-2 rounded-lg ${
-                      message.type === 'user' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-700 text-gray-100'
+            
+            {/* Test Results */}
+            {testResults && (
+              <div className="bg-gray-800/50 border-t border-gray-700/50 p-4">
+                {testResults === 'running' ? (
+                  <div className="flex items-center space-x-2 text-yellow-400">
+                    <Activity className="w-4 h-4 animate-spin" />
+                    <span>Running tests...</span>
+                  </div>
+                ) : (
+                  <div>
+                    <div className={`flex items-center space-x-2 mb-2 ${
+                      testResults.status === 'passed' ? 'text-green-400' :
+                      testResults.status === 'partial' ? 'text-yellow-400' : 'text-red-400'
                     }`}>
-                      <p className="text-sm">{message.message}</p>
-                      <p className="text-xs opacity-70 mt-1">{message.timestamp}</p>
+                      {testResults.status === 'passed' ? 
+                        <CheckCircle className="w-4 h-4" /> : 
+                        <XCircle className="w-4 h-4" />
+                      }
+                      <span className="font-medium">
+                        {testResults.passed}/{testResults.total} tests passed
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
-              {opponentTyping && (
-                <div className="text-left">
-                  <div className="inline-block bg-gray-700 text-gray-100 p-2 rounded-lg">
-                    <div className="flex items-center gap-1">
-                      <div className="flex gap-1">
-                        <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                        <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce delay-200"></div>
-                      </div>
-                      <span className="text-xs text-gray-400 ml-2">typing...</span>
+                    <div className="text-xs text-gray-400 space-y-1">
+                      {testResults.details.map((test, index) => (
+                        <div key={index} className={`flex items-center space-x-2 ${test.passed ? 'text-green-400' : 'text-red-400'}`}>
+                          {test.passed ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          <span className="font-mono">{test.input}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
-
-          {/* Chat Input */}
-          <div className="p-4 border-t border-gray-700">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Send a message..."
-                className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white placeholder-gray-400"
-              />
-              <button
-                onClick={handleSendMessage}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+          
+          {/* Chat */}
+          <div className="h-80 bg-gray-800/30 border-t border-gray-700/50 flex flex-col">
+            <div className="bg-gray-800/50 px-4 py-2 border-b border-gray-700/50 flex items-center space-x-2">
+              <MessageCircle className="w-4 h-4 text-green-400" />
+              <span className="text-white font-medium">Battle Chat</span>
+              <div className="flex items-center space-x-1 ml-auto">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span className="text-xs text-gray-400">2 online</span>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-3">
+                {messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xs px-3 py-2 rounded-lg ${
+                      message.sender === 'me' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-gray-700 text-gray-200'
+                    }`}>
+                      <div className="text-sm">{message.text}</div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-gray-700/50">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Victory Popup */}
-      {showVictoryPopup && (
+      
+      {/* VICTORY POPUP - PROPERLY INTEGRATED */}
+      {showVictory && (
         <VictoryPopup
-          show={showVictoryPopup}
-          onClose={handleVictoryClose}
-          user={user}
-          opponent={opponent}
-          gameStats={gameStats}
-          rewards={rewards}
-          isFirstWin={isFirstWin}
-          onUpdateProfile={onUpdateProfile}
+          show={showVictory}
+          onClose={() => {
+            setShowVictory(false);
+          }}
+          onStartNewGame={() => {
+            setShowVictory(false);
+            navigate('battle-arena');
+          }}
+          onGoToDashboard={() => {
+            setShowVictory(false);
+            navigate('dashboard');
+          }}
+          user={{
+            displayName: user?.name || 'Player1',
+            picture: user?.avatar,
+            wins: user?.wins || 0,
+            coins: user?.coins || 0,
+            totalEarnings: user?.totalEarnings || 0,
+            winStreak: 11, // Static win streak as requested
+            rankPoints: user?.rankPoints || 847,
+            rank: 'Silver II',
+            name: user?.name,
+            email: user?.email
+          }}
+          opponent={{
+            displayName: 'CodeNinja',
+            picture: null,
+            rank: 'Silver I'
+          }}
+          gameStats={{
+            completionTime: formatTime(15 * 60 - timeRemaining),
+            testsPassedFirst: testResults?.status === 'passed',
+            accuracy: myProgress,
+            difficulty: 'Easy'
+          }}
+          rewards={{
+            coins: gameStatus === 'victory' ? 250 : 75,
+            cash: gameStatus === 'victory' ? 1.25 : 0.40,
+            xp: gameStatus === 'victory' ? 200 : 50,
+            rankPoints: gameStatus === 'victory' ? 75 : 15,
+            achievements: myProgress === 100 && timeRemaining > 13*60 ? ['Speed Demon'] : [],
+            bonusMultiplier: Math.random() > 0.7 ? 1.5 : 1.0
+          }}
+          isFirstWin={false}
+          onUpdateProfile={(updatedUserStats) => {
+            console.log('Victory popup updating user stats:', updatedUserStats);
+            
+            // Calculate the new stats based on actual battle results
+            const battleRewards = {
+              coins: gameStatus === 'victory' ? 250 : 75,
+              cash: gameStatus === 'victory' ? 1.25 : 0.40,
+              rankPoints: gameStatus === 'victory' ? 75 : 15
+            };
+            
+            // Apply bonus multiplier if present
+            const bonusMultiplier = Math.random() > 0.7 ? 1.5 : 1.0;
+            const finalCoins = Math.floor(battleRewards.coins * bonusMultiplier);
+            const finalCash = Number((battleRewards.cash * bonusMultiplier).toFixed(2));
+            const finalRankPoints = Math.floor(battleRewards.rankPoints * bonusMultiplier);
+            
+            const newStats = {
+              ...user,
+              wins: (user?.wins || 0) + (gameStatus === 'victory' ? 1 : 0),
+              coins: (user?.coins || 0) + finalCoins,
+              totalEarnings: Number(((user?.totalEarnings || 0) + finalCash).toFixed(2)),
+              rankPoints: (user?.rankPoints || 847) + finalRankPoints,
+              winStreak: 11, // Keep static as requested
+              battlesPlayed: (user?.battlesPlayed || 0) + 1,
+              lastBattleTime: new Date().toISOString()
+            };
+            
+            console.log('Calculated new stats:', newStats);
+            
+            // Update the user state in App.jsx
+            if (typeof onUpdateUser === 'function') {
+              onUpdateUser(newStats);
+              console.log('User stats sent to App.jsx');
+            } else {
+              console.warn('onUpdateUser function not available');
+            }
+          }}
         />
       )}
     </div>

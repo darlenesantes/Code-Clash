@@ -1,204 +1,406 @@
-import React, { useState } from 'react';
+/**
+ * Main Dashboard
+ * File: client/src/pages/Dashboard.jsx
+ * Central hub for all CodeClash features - Updated to receive hardcoded victory values
+ */
+
+import React, { useState, useEffect } from 'react';
 import { 
-  Zap, Users, Trophy, Clock, Target, Plus, 
-  LogOut, Settings, BarChart3, Crown
+  Trophy, Users, DollarSign, Building2, Crown, Target,
+  Zap, Calendar, BarChart3, Settings, User, LogOut, TrendingUp
 } from 'lucide-react';
-import Avatar from '../components/ui/Avatar';
-import DashboardActivityFeed from '../components/DashboardActivityFeed';
 
-const GameDashboard = ({ navigate, user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('overview');
+const GameDashboard = ({ user, navigate, onLogout, onUpdateUser }) => {
+  const [activeSection, setActiveSection] = useState('overview');
+  const [hasWonGame, setHasWonGame] = useState(false); // Track if user has won a game
+  
+  const [userStats, setUserStats] = useState({
+    totalEarnings: user?.totalEarnings || 11.15, // DEFAULT: Start with $11.15
+    coins: user?.coins || 0,
+    wins: user?.wins || 15, // DEFAULT: Start with 15 wins
+    winStreak: user?.winStreak || 10, // DEFAULT: Start with 10 win streak
+    rankPoints: 847, // Always keep rank at 847 - NEVER CHANGES
+    battlesPlayed: user?.battlesPlayed || 19, // Total battles played
+    ...user
+  });
 
-  const stats = [
-    { label: 'Rank', value: user?.rank || 'Bronze I', icon: Crown, color: 'text-yellow-400' },
-    { label: 'Wins', value: user?.wins || 0, icon: Trophy, color: 'text-green-400' },
-    { label: 'Win Rate', value: `${user?.winRate || 0}%`, icon: BarChart3, color: 'text-blue-400' },
-    { label: 'Coins', value: user?.coins || 100, icon: Zap, color: 'text-yellow-400' }
+  // Update user stats when user prop changes (from victory popup)
+  useEffect(() => {
+    if (user) {
+      console.log('Dashboard received updated user:', user);
+      
+      // Check if user has won a game (earnings increased from 11.15)
+      if (user.totalEarnings && user.totalEarnings > 11.15) {
+        setHasWonGame(true);
+      }
+      
+      setUserStats(prevStats => ({
+        ...prevStats,
+        totalEarnings: user.totalEarnings !== undefined ? user.totalEarnings : prevStats.totalEarnings,
+        coins: user.coins !== undefined ? user.coins : prevStats.coins,
+        wins: user.wins !== undefined ? user.wins : prevStats.wins,
+        winStreak: user.winStreak !== undefined ? user.winStreak : prevStats.winStreak,
+        rankPoints: 847, // Always keep at 847 - NEVER CHANGES
+        battlesPlayed: user.battlesPlayed !== undefined ? user.battlesPlayed : prevStats.battlesPlayed,
+        ...user
+      }));
+    }
+  }, [user]);
+
+  const navigationItems = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: BarChart3,
+      description: 'Your dashboard and stats'
+    },
+    {
+      id: 'elite-leaderboard',
+      label: 'Elite Rankings',
+      icon: Crown,
+      description: 'Global leaderboard with prize pools'
+    },
+    {
+      id: 'tournaments',
+      label: 'Tournaments',
+      icon: Trophy,
+      description: 'Cash tournaments and competitions'
+    },
+    {
+      id: 'sponsor-dashboard',
+      label: 'Corporate Sponsors',
+      icon: Building2,
+      description: 'Sponsorship management system'
+    },
+    {
+      id: 'prize-pools',
+      label: 'Prize Pools',
+      icon: DollarSign,
+      description: 'Tournament winnings and payouts'
+    },
+    {
+      id: 'battle-arena',
+      label: 'Battle Arena',
+      icon: Zap,
+      description: '1v1 coding battles'
+    }
   ];
 
-  const recentMatches = [
-    { opponent: 'CodeNinja', result: 'Victory', problem: 'Two Sum', time: '2:34', coinsEarned: 50 },
-    { opponent: 'AlgoMaster', result: 'Defeat', problem: 'Valid Parentheses', time: '4:12', coinsLost: 25 },
-    { opponent: 'ByteCrusher', result: 'Victory', problem: 'Roman to Integer', time: '3:45', coinsEarned: 50 }
+  const quickStats = [
+    { 
+      label: 'Your Rank', 
+      value: `#847`, // Always show #847
+      change: '+0', // Never changes
+      color: 'text-blue-400',
+      icon: Crown
+    },
+    { 
+      label: 'Total Earnings', 
+      value: `$11.15`, 
+      change: userStats.totalEarnings > 11.15 ? `+$1.25` : '$0',
+      color: 'text-green-400',
+      icon: DollarSign
+    },
+    { 
+      label: 'Battles Won', 
+      value: 15, 
+      change: `+${userStats.wins > 15 ? 1 : 0}`,
+      color: 'text-purple-400',
+      icon: Trophy
+    },
+    { 
+      label: 'Win Streak', 
+      value: userStats.winStreak, 
+      change: userStats.winStreak >= 11 ? 'ON FIRE!' : `+${userStats.winStreak > 10 ? userStats.winStreak - 10 : 0}`,
+      color: 'text-orange-400',
+      icon: TrendingUp
+    }
   ];
+
+  const recentActivities = [
+    { 
+      type: 'battle', 
+      message: hasWonGame 
+        ? `You earned $1.25 from recent battles!` 
+        : 'Ready to start earning from battles!', 
+      time: hasWonGame ? 'Just now' : '1m ago'
+    },
+    { type: 'tournament', message: 'Elite Championship Series starts in 2 hours', time: '2h' },
+    { type: 'prize', message: 'Weekly tournament prize pool: $50,000', time: '4h' },
+    { type: 'sponsor', message: 'TechCorp sponsored Algorithm Masters Cup', time: '6h' },
+    { 
+      type: 'leaderboard', 
+      message: hasWonGame 
+        ? `Congratulations on your recent battle wins! Keep climbing!` 
+        : `Your current rank: #847`, 
+      time: hasWonGame ? '5m ago' : '8h'
+    }
+  ];
+
+  const upcomingTournaments = [
+    {
+      name: 'Elite Championship Series',
+      prizePool: '$100,000',
+      startTime: '2 hours',
+      participants: '2,547',
+      difficulty: 'Expert'
+    },
+    {
+      name: 'Algorithm Masters Cup',
+      prizePool: '$50,000',
+      startTime: '1 day',
+      participants: '1,234',
+      difficulty: 'Advanced'
+    },
+    {
+      name: 'Speed Coding Challenge',
+      prizePool: '$25,000',
+      startTime: '3 days',
+      participants: '3,891',
+      difficulty: 'Intermediate'
+    }
+  ];
+
+  const handleNavigation = (sectionId) => {
+    console.log('Navigation clicked:', sectionId);
+    setActiveSection(sectionId);
+    
+    // Navigate to different components based on selection
+    switch(sectionId) {
+      case 'elite-leaderboard':
+        navigate('leaderboard');
+        break;
+      case 'tournaments':
+        navigate('tournaments');
+        break;
+      case 'sponsor-dashboard':
+        navigate('sponsors');
+        break;
+      case 'prize-pools':
+        navigate('tournaments');
+        break;
+      case 'battle-arena':
+        navigate('battle-arena');
+        break;
+      case 'overview':
+      default:
+        setActiveSection('overview');
+        break;
+    }
+  };
+
+  // Handle tournament registration
+  const handleTournamentAction = () => {
+    navigate('tournaments');
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
-      {/* Dashboard Activity Feed */}
-      <DashboardActivityFeed />
-      
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
       {/* Header */}
-      <header className="relative z-40 px-6 py-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 bg-gray-800/50 backdrop-blur-sm rounded-xl px-4 py-3 border border-gray-700/50">
-              <Zap className="w-8 h-8 text-blue-400" />
-              <div>
+      <header className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <Zap className="w-8 h-8 text-blue-400" />
                 <h1 className="text-2xl font-bold text-white">CodeClash</h1>
-                <p className="text-gray-400 text-sm">Battle Arena</p>
+              </div>
+              <div className="hidden md:block w-px h-6 bg-gray-600"></div>
+              <div className="hidden md:block text-gray-400">
+                Professional Competitive Programming Platform
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('leaderboard')}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-gray-300 rounded-xl hover:bg-gray-600 transition-colors"
-            >
-              <Trophy className="w-4 h-4" />
-              Leaderboard
-            </button>
             
-            <button className="p-2 bg-gray-700 text-gray-300 rounded-xl hover:bg-gray-600 transition-colors">
-              <Settings className="w-5 h-5" />
-            </button>
-            
-            <button
-              onClick={onLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div className="hidden md:block">
+                  <p className="text-white font-semibold">{userStats?.name || 'User'}</p>
+                  <p className="text-gray-400 text-sm">{userStats?.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={onLogout}
+                className="flex items-center space-x-2 px-3 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden md:block">Logout</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="px-6 pb-8">
-        <div className="max-w-7xl mx-auto">
-          
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8">
-              <div className="flex items-center gap-6">
-                <Avatar 
-                  theme={user?.avatarTheme || 'coder'} 
-                  color={user?.avatarColor || 'blue'} 
-                  size="xl"
-                />
-                <div className="flex-1">
-                  <h2 className="text-3xl font-bold text-white mb-2">
-                    Welcome back, {user?.displayName || user?.name || 'CodeWarrior'}!
-                  </h2>
-                  <p className="text-gray-400 text-lg">Ready for your next coding battle?</p>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">
+            Welcome back, {userStats?.name?.split(' ')[0] || 'Competitor'}!
+          </h2>
+          <p className="text-gray-400 text-lg">
+            Ready to compete in today's tournaments and climb the elite rankings?
+          </p>
+          {userStats.totalEarnings > 11.15 && (
+            <div className="mt-3 inline-flex items-center space-x-2 bg-green-500/20 text-green-400 px-4 py-2 rounded-lg border border-green-500/30">
+              <DollarSign className="w-4 h-4" />
+              <span className="font-semibold">
+                🎉You've earned $12.40 today!
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {quickStats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <div key={index} className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-colors">
+                <div className="flex items-center justify-between mb-4">
+                  <Icon className={`w-8 h-8 ${stat.color}`} />
+                  <span className={`text-sm font-semibold ${
+                    stat.label === 'Total Earnings' && hasWonGame ? 'text-green-400' :
+                    stat.label === 'Win Streak' && hasWonGame ? 'text-orange-400' :
+                    stat.label === 'Battles Won' && hasWonGame ? 'text-purple-400' :
+                    'text-gray-400'
+                  }`}>
+                    {stat.change}
+                  </span>
                 </div>
+                <h3 className="text-2xl font-bold text-white mb-1">{stat.value}</h3>
+                <p className="text-gray-400 text-sm">{stat.label}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Navigation Panel */}
+          <div className="lg:col-span-1">
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+              <h3 className="text-xl font-bold text-white mb-6">Platform Features</h3>
+              <div className="space-y-2">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavigation(item.id)}
+                      className={`w-full text-left p-4 rounded-lg transition-all duration-200 ${
+                        activeSection === item.id
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Icon className="w-5 h-5" />
+                        <div>
+                          <div className="font-semibold">{item.label}</div>
+                          <div className="text-xs opacity-80">{item.description}</div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
-          
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 text-center">
-                <stat.icon className={`w-8 h-8 ${stat.color} mx-auto mb-3`} />
-                <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-gray-400 text-sm">{stat.label}</div>
-              </div>
-            ))}
-          </div>
 
-          {/* Main Action Cards */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {/* Quick Match */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white relative overflow-hidden">
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <Target className="w-8 h-8" />
-                  <h3 className="text-2xl font-bold">Quick Match</h3>
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* User Performance Summary - Shows when user has won a game - HARDCODED VALUES */}
+            {hasWonGame && (
+              <div className="bg-gradient-to-r from-green-900/40 to-emerald-900/40 rounded-xl p-6 border-2 border-green-500/50">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+                  <Trophy className="w-6 h-6 text-yellow-400 mr-2" />
+                  Your Battle Performance
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-400">$12.40</div>
+                    <div className="text-gray-300 text-sm">Total Earnings</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-400">16</div>
+                    <div className="text-gray-300 text-sm">Battles Won</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-400">11</div>
+                    <div className="text-gray-300 text-sm">Win Streak 🔥</div>
+                  </div>
                 </div>
-                <p className="text-blue-100 mb-6">Get matched with random opponents instantly</p>
-                <button
-                  onClick={() => navigate('match-lobby')}
-                  className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
+                <div className="mt-4 text-center">
+                  <button 
+                    onClick={() => handleNavigation('battle-arena')}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                  >
+                    Battle Again to Earn More!
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Upcoming Tournaments */}
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Upcoming Tournaments</h3>
+                <button 
+                  onClick={() => handleNavigation('tournaments')}
+                  className="text-blue-400 hover:text-blue-300 text-sm font-semibold"
                 >
-                  Find Opponent
+                  View All
                 </button>
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-            </div>
-
-            {/* Private Room */}
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-8 text-white relative overflow-hidden">
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <Users className="w-8 h-8" />
-                  <h3 className="text-2xl font-bold">Private Room</h3>
-                </div>
-                <p className="text-purple-100 mb-6">Create or join a room to battle friends</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => navigate('match-lobby')}
-                    className="bg-white text-purple-600 px-4 py-2 rounded-xl font-semibold hover:bg-purple-50 transition-colors"
-                  >
-                    Create Room
-                  </button>
-                  <button
-                    onClick={() => navigate('match-lobby')}
-                    className="bg-purple-800 text-white px-4 py-2 rounded-xl font-semibold hover:bg-purple-900 transition-colors"
-                  >
-                    Join Room
-                  </button>
-                </div>
-              </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-            </div>
-          </div>
-
-          {/* Recent Matches */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Recent Battles</h3>
-              <button className="text-blue-400 hover:text-blue-300 text-sm font-semibold">
-                View All
-              </button>
-            </div>
-            
-            {recentMatches.length > 0 ? (
               <div className="space-y-4">
-                {recentMatches.map((match, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-700/30 rounded-xl">
-                    <div className="flex items-center gap-4">
-                      <Avatar theme="ninja" color={match.result === 'Victory' ? 'green' : 'red'} size="sm" />
-                      <div>
-                        <div className="font-semibold text-white">vs {match.opponent}</div>
-                        <div className="text-gray-400 text-sm">{match.problem}</div>
+                {upcomingTournaments.map((tournament, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg hover:bg-gray-700/70 transition-colors">
+                    <div>
+                      <h4 className="text-white font-semibold">{tournament.name}</h4>
+                      <div className="flex items-center space-x-4 text-sm text-gray-400 mt-1">
+                        <span>Prize: {tournament.prizePool}</span>
+                        <span>•</span>
+                        <span>{tournament.participants} players</span>
+                        <span>•</span>
+                        <span>{tournament.difficulty}</span>
                       </div>
                     </div>
-                    
                     <div className="text-right">
-                      <div className={`font-semibold ${
-                        match.result === 'Victory' ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {match.result}
-                      </div>
-                      <div className="text-gray-400 text-sm">{match.time}</div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <div className={`font-semibold ${
-                        match.result === 'Victory' ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {match.result === 'Victory' ? `+${match.coinsEarned}` : `-${match.coinsLost}`}
-                      </div>
-                      <div className="text-gray-400 text-sm">coins</div>
+                      <div className="text-orange-400 font-semibold">Starts in {tournament.startTime}</div>
+                      <button 
+                        onClick={handleTournamentAction}
+                        className="text-blue-400 hover:text-blue-300 text-sm mt-1 font-semibold"
+                      >
+                        Register
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h4 className="text-xl font-bold text-white mb-2">No battles yet</h4>
-                <p className="text-gray-400 mb-6">Start your first battle to see your match history</p>
-                <button
-                  onClick={() => navigate('match-lobby')}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
-                >
-                  Start Your First Battle
-                </button>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+              <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
+              <div className="space-y-4">
+                {recentActivities.map((activity, index) => (
+                  <div key={index} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-700/30 transition-colors">
+                    <div className={`w-2 h-2 rounded-full ${
+                      activity.type === 'tournament' ? 'bg-blue-400' :
+                      activity.type === 'prize' ? 'bg-green-400' :
+                      activity.type === 'sponsor' ? 'bg-purple-400' :
+                      activity.type === 'battle' ? 'bg-orange-400' :
+                      'bg-cyan-400'
+                    }`}></div>
+                    <div className="flex-1">
+                      <p className="text-gray-300">{activity.message}</p>
+                    </div>
+                    <div className="text-gray-500 text-sm">{activity.time}</div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

@@ -1,106 +1,272 @@
 /**
  * User Controller
- * Handles user-related actions
- * 
- * These functions interact with the User model to perform operations such as:
- * - finding or creating a user based on Google ID
- * - updating user preferences
- * - retrieving user stats (wins, losses, matches played, win rate)
- * - updating match stats after a game ends
+ * File: server/controllers/userController.js
+ * Handles user-related database operations
  */
 
 const { User } = require('../models');
 
-// Function to find or create a user based on Google ID
-// Here we use async to handle asynchronous DB operations
+/**
+ * Find or create a user based on Google ID
+ * @param {string} googleId - Google OAuth ID
+ * @returns {Promise<User>} User instance
+ */
 async function findOrCreateUser(googleId) {
-    // first, check if the user already exists
-    try {
-        const existingUser = await User.findOne({ where: { googleId: googleId } });
-        if (existingUser) {
-            // if user exists, return the user instance. This can be converted to JSON later if needed
-            console.log('User found, already registered');
-            return existingUser;
-        }
-        // if user does not exist, create a new user
-        console.log('User not found, creating new user');
-        const newUser = await User.create({ googleId: googleId });
-        console.log('New user created');
-        return newUser;
+  try {
+    console.log('Looking for user with Google ID:', googleId);
     
-    }
-
-    catch (error) {
-        console.error('Error finding or creating user:', error);
-        throw error; // rethrow the error to be handled by the calling function 
+    // First, check if the user already exists
+    let existingUser = await User.findOne({ 
+      where: { googleId: googleId } 
+    });
+    
+    if (existingUser) {
+      console.log('User found:', existingUser.email || existingUser.id);
+      return existingUser;
     }
     
-};
+    // If user does not exist, create a new user
+    console.log('Creating new user with Google ID:', googleId);
+    const newUser = await User.create({ 
+      googleId: googleId,
+      lastLoginAt: new Date()
+    });
+    
+    console.log('New user created with ID:', newUser.id);
+    return newUser;
+    
+  } catch (error) {
+    console.error('Error finding or creating user:', error);
+    throw error;
+  }
+}
 
-// This controller will be used to update user preferences
+/**
+ * Update user preferences
+ * @param {number} userId - User ID
+ * @param {string} language - Programming language preference
+ * @param {string} difficulty - Difficulty level preference
+ * @returns {Promise<User>} Updated user instance
+ */
 async function updateUserPreferences(userId, language, difficulty) {
+  try {
+    console.log('Updating preferences for user:', userId);
+    
     const user = await User.findByPk(userId);
-
-    // Check if user exists
+    
     if (!user) {
-        throw new Error('User not found');
+      throw new Error('User not found');
     }
-    // Update user preferences (such as language and difficulty level)
-    user.languagePreference = language;
-    user.difficultyLevel = difficulty;
-    await user.save();
-
-    return user;
-}
-
-// This controller will be used to retrieve user stats, which will be used in the profile view
-// It will return the user's wins, losses, matches played, and win rate
-async function getUserStats(userId) {
-    const user = await User.findByPk(userId);
-
-    // Check if user exists
-    if (!user) {
-        throw new Error('User not found');
+    
+    // Prepare updates object
+    const updates = {};
+    
+    if (language && ['javascript', 'python', 'java', 'cpp', 'c', 'csharp', 'go', 'rust'].includes(language)) {
+      updates.languagePreference = language;
     }
-
-    return {
-        wins: user.wins,
-        losses: user.losses,
-        matchesPlayed: user.totalMatchesPlayed,
-        winStreak: user.winStreak,
-        winRate: Number((user.wins / (user.totalMatchesPlayed || 1)).toFixed(2)) // Avoid division by zero
-    };
-}
-
-// This controller will be used to update the user's match record after a game ends
-async function updateMatchStats(userId, isWin) {
-    // isWin is a boolean indicating if the user won the match
-    // If isWin is true, increment wins and win streak, else reset win streak to 0
-    const user = await User.findByPk(userId);
-
-    // Check if user exists
-    if (!user) {
-        throw new Error('User not found');
+    
+    if (difficulty && ['easy', 'medium', 'hard'].includes(difficulty)) {
+      updates.difficultyLevel = difficulty;
     }
-
-    // Update user's match stats based on win/loss
-    user.totalMatchesPlayed += 1;
-
-    if (isWin) {
-        user.wins += 1;
-        user.winStreak += 1; // Increment win streak
+    
+    // Only update if there are valid changes
+    if (Object.keys(updates).length > 0) {
+      await user.update(updates);
+      console.log('User preferences updated:', updates);
     } else {
-        user.winStreak = 0; // Reset win streak on loss
+      console.log('ℹNo valid preferences to update');
     }
-
-    await user.save();
+    
     return user;
+    
+  } catch (error) {
+    console.error('Error updating user preferences:', error);
+    throw error;
+  }
 }
 
-// Export the findOrCreateUser function for use in other parts of the application
+/**
+ * Get user statistics
+ * @param {number} userId - User ID
+ * @returns {Promise<Object>} User statistics
+ */
+async function getUserStats(userId) {
+  try {
+    console.log('Getting stats for user:', userId);
+    
+    const user = await User.findByPk(userId);
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    const stats = {
+      wins: user.wins || 0,
+      losses: user.losses || 0,
+      matchesPlayed: user.totalMatchesPlayed || 0,
+      winStreak: user.winStreak || 0,
+      winRate: user.totalMatchesPlayed > 0 
+        ? Number(((user.wins || 0) / user.totalMatchesPlayed * 100).toFixed(2))
+        : 0
+    };
+    
+    console.log('User stats retrieved:', stats);
+    return stats;
+    
+  } catch (error) {
+    console.error('Error getting user stats:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update match statistics after a game
+ * @param {number} userId - User ID
+ * @param {boolean} isWin - Whether the user won the match
+ * @returns {Promise<User>} Updated user instance
+ */
+async function updateMatchStats(userId, isWin) {
+  try {
+    console.log('🎮 Updating match stats for user:', userId, 'Win:', isWin);
+    
+    const user = await User.findByPk(userId);
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    // Calculate new stats
+    const updates = {
+      totalMatchesPlayed: (user.totalMatchesPlayed || 0) + 1
+    };
+    
+    if (isWin) {
+      updates.wins = (user.wins || 0) + 1;
+      updates.winStreak = (user.winStreak || 0) + 1;
+    } else {
+      updates.losses = (user.losses || 0) + 1;
+      updates.winStreak = 0; // Reset win streak on loss
+    }
+    
+    await user.update(updates);
+    
+    console.log('Match stats updated:', {
+      wins: updates.wins || user.wins,
+      losses: updates.losses || user.losses,
+      winStreak: updates.winStreak,
+      totalMatches: updates.totalMatchesPlayed
+    });
+    
+    return user;
+    
+  } catch (error) {
+    console.error('Error updating match stats:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get user by ID
+ * @param {number} userId - User ID
+ * @returns {Promise<User>} User instance
+ */
+async function getUserById(userId) {
+  try {
+    const user = await User.findByPk(userId);
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    return user;
+    
+  } catch (error) {
+    console.error('Error getting user by ID:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get user by Google ID
+ * @param {string} googleId - Google OAuth ID
+ * @returns {Promise<User>} User instance
+ */
+async function getUserByGoogleId(googleId) {
+  try {
+    const user = await User.findOne({ 
+      where: { googleId: googleId } 
+    });
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    return user;
+    
+  } catch (error) {
+    console.error('Error getting user by Google ID:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update user's last login time
+ * @param {number} userId - User ID
+ * @returns {Promise<User>} Updated user instance
+ */
+async function updateLastLogin(userId) {
+  try {
+    const user = await User.findByPk(userId);
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    await user.update({ lastLoginAt: new Date() });
+    return user;
+    
+  } catch (error) {
+    console.error('Error updating last login:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get top users by wins (leaderboard)
+ * @param {number} limit - Number of users to return
+ * @returns {Promise<User[]>} Array of top users
+ */
+async function getTopUsers(limit = 10) {
+  try {
+    const topUsers = await User.findAll({
+      order: [
+        ['wins', 'DESC'],
+        ['winStreak', 'DESC'],
+        ['totalMatchesPlayed', 'ASC'] // Less matches played is better for same wins
+      ],
+      limit: limit,
+      attributes: [
+        'id', 'name', 'email', 'picture', 
+        'wins', 'losses', 'totalMatchesPlayed', 'winStreak',
+        'languagePreference', 'createdAt'
+      ]
+    });
+    
+    return topUsers;
+    
+  } catch (error) {
+    console.error('Error getting top users:', error);
+    throw error;
+  }
+}
+
 module.exports = {
-    findOrCreateUser,
-    updateUserPreferences,
-    getUserStats,
-    updateMatchStats
+  findOrCreateUser,
+  updateUserPreferences,
+  getUserStats,
+  updateMatchStats,
+  getUserById,
+  getUserByGoogleId,
+  updateLastLogin,
+  getTopUsers
 };

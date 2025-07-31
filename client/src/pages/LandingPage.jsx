@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Play, Eye, Trophy, Users, Flame, Coins, Crown, ArrowRight, Github, Twitter, Pause, RotateCcw, Clock } from 'lucide-react';
+import { Zap, Play, Eye, Trophy, Users, Flame, Coins, Crown, ArrowRight, Github, Twitter, Pause, RotateCcw, Clock, Linkedin } from 'lucide-react';
 
 const CodeClashLanding = ({ navigate, user }) => {
   const [liveCount, setLiveCount] = useState(247);
@@ -55,6 +55,44 @@ const CodeClashLanding = ({ navigate, user }) => {
         <Icon className="w-12 h-12 text-blue-400 mb-4 group-hover:text-blue-300 transition-colors" />
         <h3 className="text-xl font-bold text-white mb-3 group-hover:text-blue-100 transition-colors">{title}</h3>
         <p className="text-gray-300 group-hover:text-gray-200 transition-colors">{description}</p>
+      </div>
+      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-xl group-hover:from-blue-400/30 transition-all duration-300"></div>
+    </div>
+  );
+
+  // Team Member Card Component
+  const TeamMemberCard = ({ name, role, github, linkedin, gradient, avatar }) => (
+    <div className={`relative group p-8 rounded-2xl bg-gradient-to-br ${gradient} backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 transform hover:scale-105 hover:-translate-y-2`}>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      <div className="relative z-10 text-center">
+        {/* Avatar */}
+        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg group-hover:shadow-xl transition-shadow">
+          {avatar}
+        </div>
+        
+        {/* Name & Role */}
+        <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-100 transition-colors">{name}</h3>
+        <p className="text-blue-400 font-semibold mb-4 group-hover:text-blue-300 transition-colors">{role}</p>
+        
+        {/* Social Links */}
+        <div className="flex justify-center gap-4">
+          <a 
+            href={github}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 bg-gray-800/50 hover:bg-gray-700/70 rounded-lg transition-all duration-300 hover:scale-110 group/link"
+          >
+            <Github className="w-5 h-5 text-gray-400 group-hover/link:text-white transition-colors" />
+          </a>
+          <a 
+            href={linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 bg-blue-600/20 hover:bg-blue-600/40 rounded-lg transition-all duration-300 hover:scale-110 group/link"
+          >
+            <Linkedin className="w-5 h-5 text-blue-400 group-hover/link:text-blue-300 transition-colors" />
+          </a>
+        </div>
       </div>
       <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-xl group-hover:from-blue-400/30 transition-all duration-300"></div>
     </div>
@@ -361,6 +399,12 @@ const CodeClashLanding = ({ navigate, user }) => {
                 How It Works
               </button>
               <button 
+                onClick={() => scrollToSection('team')}
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                Team
+              </button>
+              <button 
                 onClick={() => scrollToSection('leaderboard')}
                 className="text-gray-300 hover:text-white transition-colors"
               >
@@ -638,8 +682,72 @@ const CodeClashLanding = ({ navigate, user }) => {
         </div>
       </section>
 
+      {/* TEAM SECTION - NEW */}
+      <section id="team" className="relative z-10 py-32 bg-gradient-to-b from-transparent to-gray-900/50">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl font-bold text-white mb-6">
+              The <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Warriors</span> Behind CodeClash
+            </h2>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              Meet the legendary developers who forged this epic coding battleground from pure passion and code.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            <TeamMemberCard
+              name="Darlene Santes"
+              role="Database Architect"
+              github="https://github.com/darlenesantes"
+              linkedin="https://www.linkedin.com/in/darlene-santes/"
+              gradient="from-blue-900/40 to-blue-800/40"
+              avatar="DS"
+            />
+            
+            <TeamMemberCard
+              name="William Du"
+              role="Backend Engineer"
+              github="https://github.com/WiIID315"
+              linkedin="https://www.linkedin.com/in/william-w-du/"
+              gradient="from-purple-900/40 to-purple-800/40"
+              avatar="WD"
+            />
+            
+            <TeamMemberCard
+              name="Pavel Navarro"
+              role="Backend Engineer"
+              github="https://github.com/pavelnavarro"
+              linkedin="https://www.linkedin.com/in/pavelnavarro034/"
+              gradient="from-green-900/40 to-green-800/40"
+              avatar="PN"
+            />
+            
+            <TeamMemberCard
+              name="Ohinoyi Moiza"
+              role="Frontend Developer & User Experience"
+              github="https://github.com/Ohimoiza1205"
+              linkedin="https://www.linkedin.com/in/ohinoyi-moiza/"
+              gradient="from-yellow-900/40 to-orange-800/40"
+              avatar="OM"
+            />
+          </div>
+
+          {/* Team Mission Statement */}
+          <div className="mt-16 text-center">
+            <div className="max-w-4xl mx-auto p-8 bg-gradient-to-r from-gray-800/30 to-gray-900/30 rounded-2xl border border-gray-700/50 backdrop-blur-sm">
+              <h3 className="text-2xl font-bold text-white mb-4">Our Mission</h3>
+              <p className="text-lg text-gray-300 leading-relaxed">
+                "We're not building a tool...we're building a platform that is pioneering the future of competitive programming. 
+                Every line of code, every algorithm, every battle is crafted to push the boundaries of what's possible 
+                when passion meets technology. Welcome to the revolution." ⚔️
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Leaderboard Preview */}
-      <section id="leaderboard" className="relative z-10 py-32 bg-gradient-to-b from-transparent to-gray-900/50">
+      <section id="leaderboard" className="relative z-10 py-32 bg-gradient-to-b from-gray-900/50 to-transparent">
         <div className="container mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-5xl font-bold text-white mb-6">
