@@ -714,7 +714,7 @@ const CodeClashLanding = ({ navigate, user }) => {
             />
             
             <TeamMemberCard
-              name="Pavel Navarr"
+              name="Pavel Navarro"
               role="Backend Engineer"
               github="https://github.com/pavelnavarro"
               linkedin="https://www.linkedin.com/in/pavelnavarro034/"
