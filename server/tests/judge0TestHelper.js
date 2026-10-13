@@ -18,14 +18,15 @@ async function verifySubmission({ problemId, language, code, expectPass, expectS
     language === 'python' ? 71 : 63);
   assert.ok(Number.isInteger(judge.status?.id) && judge.status.id >= 3,
     'Judge0 returned an unfinished or invalid execution status');
-  const result = parseJudgeResult(judge.stdout, resultToken, problem.testCases.length);
+  const result = parseJudgeResult(judge.stdout, resultToken, problem.testCases, problem.category);
   if (expectStructured) assert.ok(result, 'Judge0 did not return a valid structured test result');
   if (expectPass) {
     assert.equal(judge.status?.id, 3, 'Judge0 did not accept the correct solution');
     assert.equal(result.passed, result.total, 'The correct solution failed stored tests');
   } else {
-    assert.ok([6, 11].includes(judge.status.id),
-      'Expected a compilation/runtime failure, not an accepted result or infrastructure error');
+    assert.ok([3, 6, 11].includes(judge.status.id),
+      'Expected output or a compilation/runtime failure, not an infrastructure error');
+    if (judge.status.id === 3) assert.ok(result, 'Accepted execution requires verifiable outputs');
     if (result) assert.ok(result.passed < result.total, 'The failing solution claimed every test passed');
   }
   console.log(language + ': ' + problem.title + ' - ' +

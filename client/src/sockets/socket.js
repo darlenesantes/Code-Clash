@@ -4,6 +4,7 @@ class GameSocket {
   constructor() {
     this.socket = null;
     this.isConnected = false;
+    this.playerId = null;
     this.eventListeners = new Map();
   }
 
@@ -133,6 +134,17 @@ class GameSocket {
     this.socket.on('submission_result', (data) => {
       this.emit('submission_result', data);
     });
+    this.socket.on('match_settings', (data) => {
+      this.playerId = data.playerId;
+      this.emit('match_settings', data);
+    });
+    this.socket.on('match_state', (data) => {
+      this.playerId = data.playerId;
+      this.emit('match_state', data);
+    });
+    this.socket.on('player_connection', (data) => {
+      this.emit('player_connection', data);
+    });
 
     this.socket.on('match_over', (data) => {
       this.emit('match_over', data);
@@ -229,9 +241,9 @@ class GameSocket {
   }
 
   // Socket action methods
-  joinMatch(matchCode, username) {
+  joinMatch(matchCode, username, resumeToken) {
     if (this.socket && this.isConnected) {
-      this.socket.emit('join_match', { matchCode, username });
+      this.socket.emit('join_match', { matchCode, username, resumeToken });
     } else {
       console.error('Socket not connected, cannot join match');
     }
@@ -243,6 +255,18 @@ class GameSocket {
     } else {
       console.error('Socket not connected, cannot submit code');
     }
+  }
+
+  leaveMatch(matchCode, resumeToken) {
+    if (this.socket && this.isConnected) {
+      // Wait for the server to record departure before navigation disconnects.
+      return new Promise((resolve) => {
+        this.socket.timeout(1500).emit('leave_match', { matchCode, resumeToken }, (error, response) => {
+          resolve(!error && response?.ok === true);
+        });
+      });
+    }
+    return Promise.resolve(false);
   }
 
   joinRoom(roomCode, userInfo) {
@@ -324,11 +348,16 @@ class GameSocket {
     return this.socket ? this.socket.id : null;
   }
 
+  getPlayerId() {
+    return this.playerId;
+  }
+
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
       this.isConnected = false;
+      this.playerId = null;
     }
   }
 }

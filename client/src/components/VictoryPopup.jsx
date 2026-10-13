@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, Crown, Star, Zap, Coins, Target, CheckCircle, ArrowRight, X, Sparkles, TrendingUp, Award, Medal, DollarSign, Flame, Users, Calendar, Gift, Rocket, ChevronRight } from 'lucide-react';
-import Avatar from '../components/ui/Avatar';
+import './VictoryPopup.css';
 
 const VictoryPopup = ({ 
   show, 
@@ -14,8 +14,11 @@ const VictoryPopup = ({
   onStartNewGame,
   onGoToDashboard
 }) => {
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [showMoneyRain, setShowMoneyRain] = useState(false);
+  const [particles, setParticles] = useState([]);
+  const [bonusMultiplier, setBonusMultiplier] = useState(1);
+  const inputsRef = useRef({ user, rewards, onUpdateProfile });
+  const profileUpdatedRef = useRef(false);
+  inputsRef.current = { user, rewards, onUpdateProfile };
   const [animatedCoins, setAnimatedCoins] = useState(0);
   const [animatedCash, setAnimatedCash] = useState(0);
   const [showMultiplier, setShowMultiplier] = useState(false);
@@ -27,59 +30,70 @@ const VictoryPopup = ({
   const cashEarned = 1.25; // Always show $1.25 earned in popup
 
   useEffect(() => {
-    if (show) {
-      // Trigger confetti and money rain
-      setShowConfetti(true);
-      setShowMoneyRain(true);
-      
-      // Animate counters to show the hardcoded values
-      setTimeout(() => {
-        const coinInterval = setInterval(() => {
-          setAnimatedCoins(prev => {
-            if (prev >= 250) { // 250 coins for victory
-              clearInterval(coinInterval);
-              return 250;
-            }
-            return prev + Math.ceil(250 / 20);
-          });
-        }, 50);
+    if (!show) {
+      setParticles([]);
+      profileUpdatedRef.current = false;
+      return undefined;
+    }
 
-        const cashInterval = setInterval(() => {
-          setAnimatedCash(prev => {
-            if (prev >= cashEarned) {
-              clearInterval(cashInterval);
-              return cashEarned;
-            }
-            return prev + (cashEarned / 20);
-          });
+    const { user: winningUser, rewards: winningRewards, onUpdateProfile: updateProfile } = inputsRef.current;
+    const multiplier = winningRewards?.bonusMultiplier || 1;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false;
+    setBonusMultiplier(multiplier);
+    setShowMultiplier(reducedMotion && multiplier > 1);
+    setAnimatedCoins(reducedMotion ? 250 : 0);
+    setAnimatedCash(reducedMotion ? cashEarned : 0);
+    setParticles(reducedMotion ? [] : Array.from({ length: 25 }, (_, index) => ({
+      id: index,
+      left: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 0.4}s`,
+      duration: `${1.8 + Math.random() * 0.6}s`,
+      drift: `${Math.random() * 160 - 80}px`,
+      rotation: `${Math.random() * 720 - 360}deg`,
+      color: ['#facc15', '#a855f7', '#22c55e', '#60a5fa', '#f87171'][index % 5]
+    })));
+
+    let counterInterval;
+    let counterDelay;
+    let multiplierTimer;
+    let confettiTimer;
+    if (!reducedMotion) {
+      counterDelay = setTimeout(() => {
+        let step = 0;
+        counterInterval = setInterval(() => {
+          step += 1;
+          setAnimatedCoins(Math.round(250 * step / 20));
+          setAnimatedCash(cashEarned * step / 20);
+          if (step === 20) clearInterval(counterInterval);
         }, 50);
       }, 500);
-
-      // Show multiplier if bonus
-      if (rewards?.bonusMultiplier > 1) {
-        setTimeout(() => setShowMultiplier(true), 1500);
+      if (multiplier > 1) {
+        multiplierTimer = setTimeout(() => setShowMultiplier(true), 1500);
       }
-
-      // Update the dashboard with the new totals (ONLY INCREMENT BY 1)
-      if (onUpdateProfile) {
-        // Calculate new dashboard totals - ONLY ADD 1 WIN and $1.25
-        const newDashboardStats = {
-          ...user,
-          wins: (user?.wins || 16) + 1, // Only add 1 win (17, 18, 19, etc.)
-          totalEarnings: Number(((user?.totalEarnings || 12.40) + 1.25).toFixed(2)), // Only add $1.25
-          winStreak: 11, // Always stay at 11
-          rankPoints: 847, // Never change rank - always 847
-          coins: (user?.coins || 0) + 250, // Add 250 coins
-          battlesPlayed: 19 // Keep total battles at 19
-        };
-        
-        // Send the updated stats to the dashboard
-        setTimeout(() => {
-          onUpdateProfile(newDashboardStats);
-        }, 2000); // Delay to let popup animations play
-      }
+      confettiTimer = setTimeout(() => setParticles([]), 3000);
     }
-  }, [show, rewards, user, onUpdateProfile]);
+
+    // Apply the existing victory update once, even if the player closes early.
+    if (!profileUpdatedRef.current && typeof updateProfile === 'function') {
+      profileUpdatedRef.current = true;
+      updateProfile({
+        ...winningUser,
+        wins: (winningUser?.wins || 16) + 1,
+        totalEarnings: Number(((winningUser?.totalEarnings || 12.40) + 1.25).toFixed(2)),
+        winStreak: 11,
+        rankPoints: 847,
+        coins: (winningUser?.coins || 0) + 250,
+        battlesPlayed: 19
+      });
+    }
+
+    return () => {
+      clearTimeout(counterDelay);
+      clearInterval(counterInterval);
+      clearTimeout(multiplierTimer);
+      clearTimeout(confettiTimer);
+    };
+  }, [show]);
 
   if (!show) return null;
 
@@ -100,45 +114,22 @@ const VictoryPopup = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      {/* Confetti Animation */}
-      {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none">
-          {[...Array(50)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute animate-bounce"
+    <div className="victory-popup fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+      {particles.length > 0 && (
+        <div aria-hidden="true" className="victory-confetti fixed inset-0 overflow-hidden pointer-events-none">
+          {particles.map((particle) => (
+            <span
+              key={particle.id}
+              className="victory-confetti-particle"
               style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 2}s`,
-                animationDuration: `${2 + Math.random() * 2}s`
+                left: particle.left,
+                backgroundColor: particle.color,
+                animationDelay: particle.delay,
+                animationDuration: particle.duration,
+                '--confetti-drift': particle.drift,
+                '--confetti-rotation': particle.rotation
               }}
-            >
-              <div className={`w-3 h-3 ${
-                ['bg-yellow-400', 'bg-purple-500', 'bg-green-400', 'bg-blue-500', 'bg-red-500'][Math.floor(Math.random() * 5)]
-              } rounded-full opacity-80`} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Money Rain Animation */}
-      {showMoneyRain && (
-        <div className="fixed inset-0 pointer-events-none">
-          {[...Array(15)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute animate-pulse"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${1 + Math.random()}s`
-              }}
-            >
-              <DollarSign className="w-6 h-6 text-green-400 opacity-70" />
-            </div>
+            />
           ))}
         </div>
       )}
@@ -181,9 +172,9 @@ const VictoryPopup = ({
               <div className="text-green-200 text-xs">
                 {animatedCoins} Coins = ${animatedCash.toFixed(2)}
               </div>
-              {showMultiplier && rewards?.bonusMultiplier > 1 && (
+              {showMultiplier && bonusMultiplier > 1 && (
                 <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-bounce">
-                  {rewards.bonusMultiplier}x!
+                  {bonusMultiplier}x!
                 </div>
               )}
             </div>

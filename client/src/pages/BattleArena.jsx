@@ -4,6 +4,7 @@
  * Esports-grade competitive programming interface
  */
 import React, { useState, useEffect } from 'react'; 
+import matchService from '../services/api/matchService';
 
 import { 
   ArrowLeft, Users, Plus, Hash, Play, Code, Clock, ChevronDown, 
@@ -290,14 +291,42 @@ const StatsBar = ({ onlineUsers = 2847, activeMatches = 156, serverLoad = 23 }) 
 
 const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
   const [roomCode, setRoomCode] = useState(initialRoomCode || '');
+  const [difficulty, setDifficulty] = useState('any');
+  const [topic, setTopic] = useState('any');
+  const [combinations, setCombinations] = useState([]);
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
-  const generateRoomCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-  };
+  useEffect(() => {
+    let active = true;
+    matchService.getOptions().then(({ combinations: available }) => {
+      if (!active) return;
+      setCombinations(available);
+      setOptionsLoaded(true);
+    }).catch(() => {
+      if (active) setCreateError('Unable to load match options. Check the server and refresh.');
+    });
+    return () => { active = false; };
+  }, []);
 
-  const handleCreateRoom = () => {
-    const newRoomCode = generateRoomCode();
-    navigate('game-room', { roomCode: newRoomCode, language: 'javascript' });
+  const hasProblems = (selectedDifficulty, selectedTopic) => combinations.some((combination) =>
+    (selectedDifficulty === 'any' || combination.difficulty === selectedDifficulty) &&
+    (selectedTopic === 'any' || combination.topic === selectedTopic)
+  );
+
+  const handleCreateRoom = async () => {
+    if (isCreating || !hasProblems(difficulty, topic)) return;
+    setIsCreating(true);
+    setCreateError('');
+    try {
+      const room = await matchService.createRoom({ difficulty, topic });
+      navigate('game-room', { roomCode: room.roomCode, preferences: room.preferences });
+    } catch (error) {
+      setCreateError(error.message || 'Unable to create the room. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleJoinRoom = () => {
@@ -371,11 +400,37 @@ const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
                 <p className="text-gray-300 mb-6 leading-relaxed">
                   Create a private two-player room, then share its code with your opponent.
                 </p>
+                <div className="space-y-4 mb-6">
+                  <label className="block text-sm text-gray-300" htmlFor="match-difficulty">
+                    Difficulty
+                    <select id="match-difficulty" value={difficulty} onChange={(event) => setDifficulty(event.target.value)} disabled={!optionsLoaded || isCreating} className="mt-2 w-full bg-gray-900 text-white px-4 py-3 rounded-xl border border-gray-600">
+                      {['any', 'easy', 'medium', 'hard'].map((value) => (
+                        <option key={value} value={value} disabled={!hasProblems(value, topic)}>
+                          {value === 'any' ? 'Any (random)' : value.charAt(0).toUpperCase() + value.slice(1)}{optionsLoaded && !hasProblems(value, topic) ? ' - unavailable' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm text-gray-300" htmlFor="match-topic">
+                    Topic
+                    <select id="match-topic" value={topic} onChange={(event) => setTopic(event.target.value)} disabled={!optionsLoaded || isCreating} className="mt-2 w-full bg-gray-900 text-white px-4 py-3 rounded-xl border border-gray-600">
+                      {['any', ...new Set(combinations.map((combination) => combination.topic))].map((value) => (
+                        <option key={value} value={value} disabled={!hasProblems(difficulty, value)}>
+                          {value === 'any' ? 'Any (random)' : value.charAt(0).toUpperCase() + value.slice(1)}{!hasProblems(difficulty, value) ? ' - unavailable' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="text-xs text-gray-400">Any chooses randomly from matching problems. Unavailable combinations are disabled.</p>
+                  {!optionsLoaded && !createError && <p role="status" className="text-sm text-gray-400">Loading match options...</p>}
+                  {createError && <p role="alert" className="text-sm text-red-400">{createError}</p>}
+                </div>
                 <button
                   onClick={handleCreateRoom}
+                  disabled={!optionsLoaded || isCreating || !hasProblems(difficulty, topic)}
                   className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                 >
-                  CREATE ROOM
+                  {isCreating ? 'CREATING ROOM...' : 'CREATE ROOM'}
                 </button>
               </div>
             </div>
