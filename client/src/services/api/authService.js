@@ -6,7 +6,7 @@
 
 class AuthService {
   constructor() {
-    this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    this.baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:3001').trim().replace(/\/+$/, '');
   }
 
   async googleAuth(token) {

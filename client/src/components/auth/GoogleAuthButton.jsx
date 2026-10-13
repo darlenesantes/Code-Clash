@@ -49,7 +49,7 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false }) => {
       if (!active) return;
       try {
         window.google.accounts.id.initialize({
-          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID?.trim(),
           callback: handleGoogleResponse,
           auto_select: false,
           ux_mode: 'popup'

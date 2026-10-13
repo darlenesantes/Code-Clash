@@ -1,4 +1,4 @@
-const baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:3001').trim().replace(/\/+$/, '');
 
 async function request(path, options) {
   const response = await fetch(`${baseURL}/api/game/${path}`, options);
