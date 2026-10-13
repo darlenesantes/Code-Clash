@@ -13,9 +13,7 @@ class AuthService {
     try {
       console.log('AuthService: Sending Google token to backend...');
       
-      // Fixed: Make console log match actual URL
-      const url = `${this.baseURL}/auth`;
-      console.log('API URL:', url);
+      const url = `${this.baseURL}/api/auth/google`;
 
       const response = await fetch(url, {
         method: 'POST',
@@ -25,15 +23,12 @@ class AuthService {
         body: JSON.stringify({ token })
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers.get('content-type'));
-
       // Check if response is actually JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const textResponse = await response.text();
         console.error('Non-JSON response received:', textResponse.substring(0, 200));
-        throw new Error('Server returned HTML instead of JSON. Check if the function is deployed.');
+        throw new Error('Server returned an unexpected response. Check the API URL.');
       }
 
       if (!response.ok) {
@@ -42,8 +37,6 @@ class AuthService {
       }
 
       const data = await response.json();
-      console.log('Auth Success:', data);
-
       return {
         success: true,
         user: data.user,
@@ -60,10 +53,10 @@ class AuthService {
         };
       }
 
-      if (error.message.includes('HTML instead of JSON')) {
+      if (error.message.includes('unexpected response')) {
         return {
           success: false,
-          error: 'Function not found. Please check if /.netlify/functions/auth is deployed.'
+          error: 'Authentication API was not found. Check REACT_APP_API_URL.'
         };
       }
 

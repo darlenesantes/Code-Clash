@@ -7,11 +7,13 @@ const { Server } = require("socket.io");
 const matchSocketHandler = require("./sockets/matchSocket");
 const { getJudge0ConfigStatus } = require("./utils/judge0Helper");
 
+const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:3000";
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: clientOrigin,
     credentials: true
   }
 });
@@ -24,7 +26,7 @@ io.on("connection", (socket) => {
 
 // CORS Configuration
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin: clientOrigin,
   credentials: true
 }));
 
@@ -214,7 +216,8 @@ app.get('/health', (req, res) => {
     status: 'CodeClash Server Online',
     timestamp: new Date().toISOString(),
     googleAuth: process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Missing',
-    judge0: judge0.configured ? 'Configured' : `Missing: ${judge0.missing.join(', ')}`,
+    judge0: judge0.configured ? 'Configured (execution not verified)' : `Missing: ${judge0.missing.join(', ')}`,
+    judge0Verification: 'Run npm run test:judge0 --workspace=server to verify real execution. This endpoint checks configuration only.',
     features: {
       authentication: 'Active',
       gaming: 'Active'

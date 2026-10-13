@@ -289,97 +289,20 @@ const StatsBar = ({ onlineUsers = 2847, activeMatches = 156, serverLoad = 23 }) 
 };
 
 const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
-  const [roomCode, setRoomCode] = useState('');
-  const [showWaiting, setShowWaiting] = useState(false);
-  const [waitingRoom, setWaitingRoom] = useState(null);
-  const [countdown, setCountdown] = useState(null);
-  const [generatedCode, setGeneratedCode] = useState('');
+  const [roomCode, setRoomCode] = useState(initialRoomCode || '');
 
   const generateRoomCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
-  const handleLanguageChange = (newLanguage) => {
-    setSelectedLanguage(newLanguage);
-  };
-
   const handleCreateRoom = () => {
     const newRoomCode = generateRoomCode();
-    setWaitingRoom({ code: newRoomCode, type: 'created', hasOpponent: false });
-    setShowWaiting(true);
-    
-    // Wait 3 seconds for opponent, then show demo opponent
-    setTimeout(() => {
-      setWaitingRoom(prev => ({ ...prev, hasOpponent: true }));
-    }, 3000);
+    navigate('game-room', { roomCode: newRoomCode, language: 'javascript' });
   };
 
   const handleJoinRoom = () => {
     if (roomCode.length >= 4) {
-      setWaitingRoom({ code: roomCode.toUpperCase(), type: 'joined', hasOpponent: false });
-      setShowWaiting(true);
-      
-      // Immediate opponent for joined rooms
-      setTimeout(() => {
-        setWaitingRoom(prev => ({ ...prev, hasOpponent: true }));
-      }, 1000);
-    }
-  };
-
-  const handleQuickMatch = () => {
-    const matchRoomCode = generateRoomCode();
-    setWaitingRoom({ code: matchRoomCode, type: 'quick', hasOpponent: false });
-    setShowWaiting(true);
-    
-    // Quick match gets opponent faster
-    setTimeout(() => {
-      setWaitingRoom(prev => ({ ...prev, hasOpponent: true }));
-    }, 2000);
-  };
-
-  const handleReady = () => {
-    setCountdown(3);
-    
-    const countdownInterval = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === 1) {
-          clearInterval(countdownInterval);
-          setTimeout(() => {
-            setShowWaiting(false);
-            setCountdown(null);
-            navigate('game-room', { 
-              roomCode: waitingRoom.code, 
-              language: selectedLanguage,
-              quickMatch: waitingRoom.type === 'quick'
-            });
-          }, 1000);
-          return 'CLASH!';
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const generateJoinCode = () => {
-    const code = generateRoomCode();
-    setGeneratedCode(code);
-  };
-
-  // Live battles data with correct player counts that sum to 156
-  const liveBattles = [
-    { id: 'ROOM1A', players: 2, maxPlayers: 2, difficulty: 'MEDIUM', language: 'JavaScript', status: 'ACTIVE', region: 'US-EAST' }, // 50 spectators
-    { id: 'CODE42', players: 1, maxPlayers: 2, difficulty: 'HARD', language: 'Python', status: 'WAITING', region: 'EU-WEST' }, // 30 in queue
-    { id: 'ALGO99', players: 2, maxPlayers: 2, difficulty: 'EASY', language: 'Java', status: 'ACTIVE', region: 'ASIA' }, // 50 spectators  
-    { id: 'DEV123', players: 1, maxPlayers: 2, difficulty: 'EXPERT', language: 'C++', status: 'WAITING', region: 'US-WEST' } // 26 in queue
-  ];
-
-  // Calculate total: 2+30+2+50+1+26 = 111, need 45 more distributed
-  const getDisplayPlayers = (room) => {
-    if (room.status === 'ACTIVE') {
-      return room.id === 'ROOM1A' ? '50/50' : '50/50'; // Spectators
-    } else {
-      return room.id === 'CODE42' ? '30/50' : '26/50'; // Waiting players
+      navigate('game-room', { roomCode: roomCode.toUpperCase(), language: 'javascript' });
     }
   };
 
@@ -394,8 +317,7 @@ const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
         <div className="absolute bottom-32 left-40 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></div>
       </div>
 
-      {/* Main Content with Left Space Reserved */}
-      <div className="relative z-10 pl-80 pr-8 py-8">
+      <div className="relative z-10 px-8 py-8">
         <div className="max-w-6xl mx-auto">
           {/* Header Section */}
           <div className="flex items-center justify-between mb-8">
@@ -407,11 +329,6 @@ const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
               <span className="font-medium">Back to Dashboard</span>
             </button>
 
-            <div className="flex items-center space-x-2 bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <Signal className="w-4 h-4 text-green-400" />
-              <span className="text-green-400 font-medium text-sm">CONNECTED</span>
-            </div>
           </div>
           
           {/* Title Section */}
@@ -428,45 +345,15 @@ const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
             </p>
           </div>
 
-          {/* Gaming Stats */}
-          <StatsBar />
-
-          {/* Language Selection */}
+          {/* MVP language */}
           <div className="flex justify-center mb-12">
-            <LanguageSelector 
-              selectedLanguage={selectedLanguage}
-              onLanguageChange={handleLanguageChange}
-            />
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm text-yellow-300">
+              Choose JavaScript or Python inside your match.
+            </div>
           </div>
 
           {/* Main Action Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            {/* Quick Match */}
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300"></div>
-              <div className="relative bg-gray-800/40 backdrop-blur-sm border border-green-500/30 rounded-2xl p-8 hover:border-green-500/50 transition-all duration-300 transform hover:scale-105">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="bg-green-500/20 p-4 rounded-xl">
-                    <Play className="w-8 h-8 text-green-400" />
-                  </div>
-                  <div className="text-right">
-                    <div className="text-green-400 font-mono text-sm">AVG WAIT</div>
-                    <div className="text-white font-bold">2.3s</div>
-                  </div>
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-3">QUICK MATCH</h3>
-                <p className="text-gray-300 mb-6 leading-relaxed">
-                  Instant matchmaking with players of similar skill level. Get matched in seconds.
-                </p>
-                <button
-                  onClick={handleQuickMatch}
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                >
-                  FIND MATCH
-                </button>
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
             {/* Create Room */}
             <div className="group relative">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300"></div>
@@ -482,7 +369,7 @@ const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-3">CREATE ROOM</h3>
                 <p className="text-gray-300 mb-6 leading-relaxed">
-                  Host a private battle. Set difficulty, time limits, and invite specific players.
+                  Create a private two-player room, then share its code with your opponent.
                 </p>
                 <button
                   onClick={handleCreateRoom}
@@ -511,27 +398,6 @@ const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
                   Enter an invite code to join a friend's private battle room.
                 </p>
                 <div className="space-y-4">
-                  {/* Generate Code Section */}
-                  <div className="bg-gray-900/30 rounded-xl p-4 border border-gray-600/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-400">Generate Room Code:</span>
-                      <button
-                        onClick={generateJoinCode}
-                        className="text-purple-400 hover:text-purple-300 text-sm font-semibold transition-colors"
-                      >
-                        Generate
-                      </button>
-                    </div>
-                    {generatedCode && (
-                      <div className="bg-gray-800/50 rounded-lg p-2 text-center">
-                        <span className="text-purple-400 font-mono text-lg tracking-widest">
-                          {generatedCode}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Join Code Input */}
                   <input
                     type="text"
                     placeholder="ENTER ROOM CODE"
@@ -552,180 +418,15 @@ const BattleArena = ({ navigate, user, roomCode: initialRoomCode }) => {
             </div>
           </div>
 
-          {/* Live Battles Section */}
-          <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-3">
-                <Activity className="w-6 h-6 text-orange-400" />
-                <h3 className="text-2xl font-bold text-white">LIVE BATTLES</h3>
-                <div className="bg-orange-500/20 px-3 py-1 rounded-full">
-                  <span className="text-orange-400 font-mono text-sm">156 ACTIVE</span>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 text-gray-400">
-                <Globe className="w-4 h-4" />
-                <span className="font-mono text-sm">GLOBAL SERVERS</span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {liveBattles.map((room) => (
-                <div key={room.id} className="bg-gray-900/40 rounded-xl p-6 border border-gray-700/30 hover:border-gray-600/50 transition-all duration-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <Hash className="w-5 h-5 text-gray-400" />
-                      <span className="text-xl font-bold text-white font-mono">{room.id}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                        room.status === 'WAITING' 
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30' 
-                          : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
-                      }`}>
-                        {room.status}
-                      </span>
-                      <span className="px-2 py-1 bg-gray-700/50 text-gray-300 rounded text-xs font-mono">
-                        {room.region}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
-                    <div>
-                      <div className="text-gray-400 mb-1">PLAYERS</div>
-                      <div className="text-white font-bold font-mono">{getDisplayPlayers(room)}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-400 mb-1">DIFFICULTY</div>
-                      <div className="text-white font-bold">{room.difficulty}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-400 mb-1">LANGUAGE</div>
-                      <div className="text-white font-bold">{room.language}</div>
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={() => {
-                      if (room.status === 'WAITING') {
-                        setWaitingRoom({ code: room.id, type: 'public', hasOpponent: false });
-                        setShowWaiting(true);
-                        setTimeout(() => {
-                          setWaitingRoom(prev => ({ ...prev, hasOpponent: true }));
-                        }, 1500);
-                      } else {
-                        navigate('spectate-room', { roomCode: room.id, language: room.language.toLowerCase() });
-                      }
-                    }}
-                    className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition-all duration-200 ${
-                      room.status === 'WAITING'
-                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white transform hover:scale-105'
-                        : 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300'
-                    }`}
-                  >
-                    {room.status === 'WAITING' ? 'JOIN BATTLE' : 'SPECTATE'}
-                  </button>
-                </div>
-              ))}
-            </div>
+          <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8 text-center">
+            <Users className="mx-auto mb-3 h-7 w-7 text-blue-400" />
+            <h3 className="text-2xl font-bold text-white">TWO-PLAYER PRIVATE MATCHES</h3>
+            <p className="mt-2 text-gray-300">Create a room, share its code, and the match begins when a second player joins.</p>
           </div>
         </div>
       </div>
 
-      {/* Left Dashboard Activity Feed */}
-      <div className="absolute left-0 top-0 w-72 h-full bg-gradient-to-b from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-r border-gray-700/30">
-        <BattleArenaActivityFeed />
-      </div>
 
-      {/* Waiting/Countdown Modal */}
-      {showWaiting && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8 max-w-md w-full mx-4 shadow-2xl">
-            <div className="text-center">
-              {countdown ? (
-                // Countdown Phase
-                <div>
-                  <div className="mb-6">
-                    {countdown === 'CLASH!' ? (
-                      <>
-                        <Swords className="w-20 h-20 text-orange-400 mx-auto mb-4 animate-bounce" />
-                        <h2 className="text-4xl font-black text-orange-400 animate-pulse">CLASH!</h2>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-24 h-24 rounded-full border-4 border-blue-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                          <span className="text-4xl font-black text-white">{countdown}</span>
-                        </div>
-                        <h2 className="text-2xl font-bold text-white">Get Ready!</h2>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                // Waiting Phase
-                <div>
-                  <div className="mb-6">
-                    <Users className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-white mb-2">
-                      {waitingRoom?.type === 'created' ? 'Room Created!' : 
-                       waitingRoom?.type === 'joined' ? 'Joined Room!' : 'Finding Match...'}
-                    </h2>
-                    <p className="text-gray-400">Room Code: <span className="text-blue-400 font-mono font-bold">{waitingRoom?.code}</span></p>
-                  </div>
-                  
-                  {waitingRoom?.hasOpponent ? (
-                    <div>
-                      <div className="bg-gray-800/50 rounded-xl p-4 mb-6">
-                        <div className="flex items-center justify-between">
-                          <div className="text-center">
-                            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
-                              <User className="w-6 h-6 text-white" />
-                            </div>
-                            <div className="text-white font-bold">You</div>
-                            <div className="text-green-400 text-sm">Ready</div>
-                          </div>
-                          <div className="text-4xl text-gray-400">VS</div>
-                          <div className="text-center">
-                            <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
-                              <User className="w-6 h-6 text-white" />
-                            </div>
-                            <div className="text-white font-bold">CodeNinja</div>
-                            <div className="text-green-400 text-sm">Ready</div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <button
-                        onClick={handleReady}
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                      >
-                        READY TO BATTLE
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-center justify-center mb-6">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-                        <span className="ml-3 text-gray-300">Waiting for opponent...</span>
-                      </div>
-                      
-                      <button
-                        onClick={() => {
-                          setShowWaiting(false);
-                          setWaitingRoom(null);
-                        }}
-                        className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-xl font-bold transition-all duration-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

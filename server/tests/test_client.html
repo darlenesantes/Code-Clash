@@ -32,8 +32,8 @@
     });
 
     // Listen for match over
-    socket.on("match_over", ({ winner, output }) => {
-      console.log(`🏆 ${winner} won! Output:`, output);
+    socket.on("match_over", ({ winnerId, winnerName, results }) => {
+      console.log(`🏆 ${winnerName} (${winnerId}) won! Result:`, results);
     });
 
     // Listen for submission results
