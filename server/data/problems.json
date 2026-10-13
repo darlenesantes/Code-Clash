@@ -19,7 +19,7 @@
       { "input": "[0,4,3,0]\n0", "expectedOutputs": ["[0,3]", "[3,0]"] },
       { "input": "[1,1,1,1,2]\n3", "expectedOutputs": ["[3,4]", "[2,4]", "[1,4]", "[0,4]"] },
       { "input": "[0,0,0,1,5]\n6", "expectedOutputs": ["[3,4]"] },
-      { "input": "[1,2,5,6,10]\n15", "expectedOutputs": ["[3,4]", "[2,4]"] },
+      { "input": "[1,2,5,6,10]\n15", "expectedOutputs": ["[2,4]"] },
       { "input": "[2,5,5,11]\n10", "expectedOutputs": ["[1,2]"] },
       { "input": "[1,2]\n3", "expectedOutputs": ["[0,1]"] }
     ]

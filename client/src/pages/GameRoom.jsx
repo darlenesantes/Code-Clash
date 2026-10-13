@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Play, Send, Clock, User, CheckCircle, XCircle, Code, MessageCircle, Trophy, Target, Zap, Settings, Copy, RotateCcw, Download, Users, Crown, Wifi, WifiOff, Swords, Monitor, Activity } from 'lucide-react';
+import { ArrowLeft, Clock, User, CheckCircle, XCircle, Code, Trophy, Target, Zap, Settings, Copy, RotateCcw, Download, Users, Crown, Wifi, WifiOff, Swords, Monitor, Activity } from 'lucide-react';
 import VictoryPopup from '../components/VictoryPopup'; 
 import gameSocket from '../sockets/socket';
 
@@ -9,10 +9,12 @@ const GameRoom = ({
   user = { name: 'Player1', avatar: null },
   onUpdateUser // CRITICAL: This comes from App.jsx for victory updates
 }) => {
-  const [code, setCode] = useState('// Start coding here...\n');
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [timeRemaining, setTimeRemaining] = useState(15 * 60); // 15 minutes
+  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
+  const [codeDrafts, setCodeDrafts] = useState({ javascript: '// Start coding here...\n', python: '# Start coding here...\n' });
+  const code = codeDrafts[selectedLanguage];
+  const setCode = (value) => setCodeDrafts((drafts) => ({ ...drafts, [selectedLanguage]: value }));
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [matchDurationSeconds, setMatchDurationSeconds] = useState(0);
   const [myProgress, setMyProgress] = useState(0);
   const [opponentProgress] = useState(0);
   const [gameStatus, setGameStatus] = useState('waiting'); // waiting, active, finished, victory, defeat
@@ -23,28 +25,10 @@ const GameRoom = ({
   const [showVictory, setShowVictory] = useState(false);
   const [testResults, setTestResults] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
-  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
-  
-  const messagesEndRef = useRef(null);
+  const [deadlineAt, setDeadlineAt] = useState(null);
   const codeEditorRef = useRef(null);
   const guestUsernameRef = useRef(`Player-${Math.random().toString(36).slice(2, 7)}`);
 
-  const languages = [
-    { id: 'javascript', name: 'JavaScript', color: 'text-yellow-400', starter: '// Start coding here...\nfunction twoSum(nums, target) {\n    \n}' }
-  ];
-
-  const handleLanguageChange = (languageId) => {
-    const newLang = languages.find(lang => lang.id === languageId);
-    if (newLang) {
-      setSelectedLanguage(languageId);
-      setCode(newLang.starter);
-      setShowLanguageDropdown(false);
-    }
-  };
-
-  const currentLanguage = languages.find(lang => lang.id === selectedLanguage) || languages[0];
-  
   // Opponent AI messages for different phases
   const opponentMessages = {
     start: [
@@ -147,12 +131,19 @@ const GameRoom = ({
       }
     };
 
-    const handleGameStarted = ({ problem: selectedProblem }) => {
+    const handleGameStarted = ({ problem: selectedProblem, deadlineAt: matchDeadlineAt, durationMs }) => {
       setServerProblem(selectedProblem);
       setMatchStatus('active');
       setGameStatus('active');
-      setTimeRemaining(15 * 60);
-      setCode(selectedProblem?.functionSignature?.javascript || '// Start coding here...\n');
+      setDeadlineAt(matchDeadlineAt);
+      setMatchDurationSeconds(durationMs / 1000);
+      setTimeRemaining(Math.max(0, Math.ceil((matchDeadlineAt - Date.now()) / 1000)));
+      setSelectedLanguage('javascript');
+      setCodeDrafts({
+        javascript: selectedProblem?.functionSignature?.javascript || '// Start coding here...\n',
+        python: selectedProblem?.functionSignature?.python || '# Start coding here...\n'
+      });
+      setEditorLocked(false);
       setSubmissionMessage('');
     };
 
@@ -168,13 +159,16 @@ const GameRoom = ({
       });
     };
 
-    const handleMatchOver = ({ winner, results }) => {
-      const didWin = winner === username;
+    const handleMatchOver = ({ winnerId, winnerName, reason, results }) => {
+      const timedOut = reason === 'time_expired';
+      const didWin = !timedOut && winnerId === gameSocket.getSocketId();
       setMatchStatus('completed');
-      setGameStatus(didWin ? 'victory' : 'defeat');
+      setGameStatus(timedOut ? 'finished' : didWin ? 'victory' : 'defeat');
+      setDeadlineAt(null);
       setEditorLocked(true);
       setSubmissionMessage(
-        didWin ? 'Your solution won the match.' : `${winner || 'Your opponent'} won the match.`
+        timedOut ? 'Time expired. No player solved the problem.' :
+          didWin ? 'Your solution won the match.' : `${winnerName || 'Your opponent'} won the match.`
       );
       if (didWin && results) {
         setTestResults({
@@ -206,35 +200,23 @@ const GameRoom = ({
     };
   }, [roomCode, username, userId, userEmail]);
 
-  // Initialize chat with pre-battle message
-  useEffect(() => {
-    const initialMessage = opponentMessages.start[Math.floor(Math.random() * opponentMessages.start.length)];
-    setMessages([{
-      id: 1,
-      sender: 'opponent',
-      text: initialMessage,
-      timestamp: new Date()
-    }]);
-  }, []);
-
   // Timer countdown
   useEffect(() => {
-    if (matchStatus !== 'active' || gameStatus !== 'active') {
+    if (matchStatus !== 'active' || gameStatus !== 'active' || !deadlineAt) {
       return undefined;
     }
 
-    const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 0) {
-          setGameStatus('finished');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const updateTimeRemaining = () => {
+      const remaining = Math.max(0, Math.ceil((deadlineAt - Date.now()) / 1000));
+      setTimeRemaining(remaining);
+      if (remaining === 0) setGameStatus('finished');
+    };
+
+    updateTimeRemaining();
+    const timer = setInterval(updateTimeRemaining, 250);
 
     return () => clearInterval(timer);
-  }, [matchStatus, gameStatus]);
+  }, [deadlineAt, matchStatus, gameStatus]);
 
   // Calculate my progress based on code
   useEffect(() => {
@@ -266,60 +248,17 @@ const GameRoom = ({
     setMyProgress(newProgress);
   }, [code]);
 
-  // Auto-scroll chat
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        sender: 'me',
-        text: newMessage,
-        timestamp: new Date()
-      }]);
-      setNewMessage('');
-      
-      // Trigger opponent response
-      setTimeout(() => {
-        const response = opponentMessages.responses[Math.floor(Math.random() * opponentMessages.responses.length)];
-        setMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          sender: 'opponent',
-          text: response,
-          timestamp: new Date()
-        }]);
-      }, 2000 + Math.random() * 3000);
-    }
-  };
-
-  const handleRunTests = () => {
-    setSubmissionMessage('Server tests run when you submit your solution.');
-  };
-
   const handleSubmit = () => {
-    if (matchStatus !== 'active' || editorLocked || !gameSocket.isSocketConnected()) {
+    if (matchStatus !== 'active' || editorLocked || timeRemaining === 0 || !gameSocket.isSocketConnected()) {
       return;
     }
-
-    const languageIds = {
-      javascript: 63,
-      python: 71,
-      java: 62,
-      cpp: 54,
-      csharp: 51,
-      go: 60,
-      rust: 73,
-      typescript: 74
-    };
 
     setTestResults('running');
     setSubmissionMessage('Submitting solution to the server...');
     gameSocket.submitCode({
       matchCode: roomCode,
       code,
-      languageId: languageIds[selectedLanguage] || 63
+      languageId: selectedLanguage === 'python' ? 71 : 63
     });
   };
 
@@ -477,7 +416,7 @@ const GameRoom = ({
           </div>
         </div>
 
-        {/* Right Panel - Code Editor & Chat */}
+        {/* Right Panel - Code Editor */}
         <div className="w-1/2 flex flex-col">
           {/* Code Editor */}
           <div className="flex-1 flex flex-col">
@@ -485,49 +424,26 @@ const GameRoom = ({
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                   <Code className="w-4 h-4 text-purple-400" />
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                      className={`flex items-center space-x-2 px-3 py-1 rounded-lg transition-colors ${currentLanguage.color} hover:bg-gray-700/50`}
-                    >
-                      <span className="font-medium">{currentLanguage.name}</span>
-                      <svg className={`w-4 h-4 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    
-                    {showLanguageDropdown && (
-                      <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-40">
-                        {languages.map((lang) => (
-                          <button
-                            key={lang.id}
-                            onClick={() => handleLanguageChange(lang.id)}
-                            className={`w-full text-left px-3 py-2 hover:bg-gray-700 transition-colors ${lang.color} ${
-                              selectedLanguage === lang.id ? 'bg-gray-700' : ''
-                            }`}
-                          >
-                            {lang.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <select
+                    aria-label="Solution language"
+                    value={selectedLanguage}
+                    onChange={(event) => setSelectedLanguage(event.target.value)}
+                    disabled={editorLocked || matchStatus !== 'active' || timeRemaining === 0 || testResults === 'running'}
+                    className="rounded-lg bg-gray-800 px-3 py-1 font-medium text-yellow-400"
+                  >
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                  </select>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
                 <button 
-                  onClick={handleRunTests}
-                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
-                >
-                  <Play className="w-4 h-4" />
-                  <span>Run Tests</span>
-                </button>
-                <button 
                   onClick={handleSubmit}
+                  disabled={editorLocked || matchStatus !== 'active' || timeRemaining === 0 || testResults === 'running'}
                   className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  <span>Submit</span>
+                  <span>Run Tests & Submit</span>
                 </button>
               </div>
             </div>
@@ -537,7 +453,7 @@ const GameRoom = ({
                 ref={codeEditorRef}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                disabled={editorLocked || matchStatus !== 'active'}
+                disabled={editorLocked || matchStatus !== 'active' || timeRemaining === 0}
                 className="w-full h-full bg-gray-900 text-white p-4 font-mono text-sm resize-none focus:outline-none"
                 placeholder="// Start coding here..."
                 spellCheck="false"
@@ -585,53 +501,6 @@ const GameRoom = ({
             )}
           </div>
           
-          {/* Chat */}
-          <div className="h-80 bg-gray-800/30 border-t border-gray-700/50 flex flex-col">
-            <div className="bg-gray-800/50 px-4 py-2 border-b border-gray-700/50 flex items-center space-x-2">
-              <MessageCircle className="w-4 h-4 text-green-400" />
-              <span className="text-white font-medium">Battle Chat</span>
-              <div className="flex items-center space-x-1 ml-auto">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-xs text-gray-400">2 online</span>
-              </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="space-y-3">
-                {messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs px-3 py-2 rounded-lg ${
-                      message.sender === 'me' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-700 text-gray-200'
-                    }`}>
-                      <div className="text-sm">{message.text}</div>
-                    </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
-            
-            <div className="p-4 border-t border-gray-700/50">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Type a message..."
-                  className="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={handleSendMessage}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
       
@@ -663,12 +532,12 @@ const GameRoom = ({
             email: user?.email
           }}
           opponent={{
-            displayName: 'CodeNinja',
+            displayName: 'Opponent',
             picture: null,
             rank: 'Silver I'
           }}
           gameStats={{
-            completionTime: formatTime(15 * 60 - timeRemaining),
+            completionTime: formatTime(Math.max(0, matchDurationSeconds - timeRemaining)),
             testsPassedFirst: testResults?.status === 'passed',
             accuracy: myProgress,
             difficulty: 'Easy'
@@ -678,7 +547,7 @@ const GameRoom = ({
             cash: gameStatus === 'victory' ? 1.25 : 0.40,
             xp: gameStatus === 'victory' ? 200 : 50,
             rankPoints: gameStatus === 'victory' ? 75 : 15,
-            achievements: myProgress === 100 && timeRemaining > 13*60 ? ['Speed Demon'] : [],
+            achievements: myProgress === 100 && matchDurationSeconds - timeRemaining < 2 * 60 ? ['Speed Demon'] : [],
             bonusMultiplier: Math.random() > 0.7 ? 1.5 : 1.0
           }}
           isFirstWin={false}

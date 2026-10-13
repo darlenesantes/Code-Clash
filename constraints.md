@@ -9,8 +9,10 @@ The current product scope is one private match with exactly two players:
 1. Both players join using the same match code.
 2. The server starts the match only after the second player joins.
 3. Both players receive the same programming problem.
-4. Each player submits JavaScript code.
+4. Each player independently chooses and submits JavaScript or Python code.
 5. The server evaluates submissions and declares the first fully correct submission the winner.
+
+The server sets the deadline from the selected problem's difficulty: easy 15 minutes, medium 20 minutes, hard 30 minutes. `start_game` includes `deadlineAt` and `durationMs`; the client uses these for countdown and elapsed time. `MATCH_DURATION_MS` is no longer used.
 
 Do not add tournaments, matchmaking queues, rankings, AI opponents, persistent match history, or extra game modes while working on the MVP unless the user explicitly asks.
 
@@ -41,12 +43,12 @@ Do not add tournaments, matchmaking queues, rankings, AI opponents, persistent m
 
 - `testCases` must be non-empty.
 - `expectedOutputs` is an array because more than one output can be correct.
-- `functionSignature.javascript` is the starter code shown in the MVP client.
+- `functionSignature.javascript` and `functionSignature.python` are the starter codes shown in the MVP client. Preserve separate drafts when switching languages.
 - Do not send `testCases` or `expectedOutputs` to the browser. They are server-side judging data.
 
 ## Problem runner constraints
 
-The current JavaScript runners support these problem IDs only:
+The current JavaScript and Python runners support these problem IDs only:
 
 | ID | Problem | Category |
 | --- | --- | --- |
@@ -80,9 +82,10 @@ The server owns match state and winner selection.
 
 ## Language support
 
-The current MVP supports **JavaScript only**.
+The current MVP supports **JavaScript and Python only**.
 
-- Use Judge0 language ID `63`.
+- Use Judge0 language ID `63` for JavaScript and `71` for Python 3.
+- Python submissions use the standalone snake_case functions in the JSON starters. The runner supplies `ListNode(val, next)` and `TreeNode(val, left, right)` for the relevant problems.
 - The client must not offer languages the server cannot judge.
 - Add another language only after implementing its wrapper, input conversion, output comparison, server validation, and tests.
 
@@ -109,7 +112,7 @@ Keep these Socket.IO events compatible:
 | `match_over` | server ? room | winner and structured result |
 | `lock_editor` | server ? opponent | disable further editing |
 
-The public problem payload may include ID, title, category, difficulty, description, and JavaScript function signature. It must exclude test cases.
+The public problem payload may include ID, title, category, difficulty, description, and JavaScript/Python function signatures. It must exclude test cases.
 
 ## Safe change checklist
 
@@ -119,7 +122,9 @@ Before considering a match-flow change complete:
 2. Verify every supported problem runner against its saved JSON test cases.
 3. Verify two Socket.IO clients receive one `start_game` event with the same public problem.
 4. Run `git diff --check`.
-5. If Judge0 credentials are available, manually verify one passing and one failing submission.
+5. Run `npm test --workspace=server` for local runner, result-parser, and server-flow checks. When authorized to use the configured Judge0 service, run `npm run test:judge0 --workspace=server` for live execution checks; this sends code and stored tests externally and uses the provider's quota.
+
+`/health` checks configuration only and must not claim execution is verified. Live scripts consume the decoded output from `runJudge0` and use the same result parser as the match server. Never decode that output a second time or count emoji results. Test failures must exit with a nonzero status.
 
 ## Out of scope technical debt
 

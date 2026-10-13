@@ -1,11 +1,20 @@
 const { runJudge0 } = require("../utils/judge0Helper");
-const { RESULT_PREFIX, buildJsWrappedCode } = require("../utils/wrappers");
+const { randomUUID } = require("crypto");
+const { buildJsWrappedCode, buildPythonWrappedCode } = require("../utils/wrappers");
+const { parseJudgeResult } = require("../utils/judgeResult");
 const problemUtils = require("../utils/problemUtils");
 
 const matchRooms = {};
 const matchData = {};
 const SUPPORTED_PROBLEM_IDS = new Set([2, 3, 4, 5]);
-const JAVASCRIPT_LANGUAGE_ID = 63;
+const LANGUAGE_RUNNERS = new Map([[63, buildJsWrappedCode], [71, buildPythonWrappedCode]]);
+const MATCH_MINUTES_BY_DIFFICULTY = { easy: 15, medium: 20, hard: 30 };
+
+function matchDurationMs(difficulty) {
+  const minutes = MATCH_MINUTES_BY_DIFFICULTY[difficulty];
+  if (!minutes) throw new Error(`Unsupported problem difficulty: ${difficulty}`);
+  return minutes * 60 * 1000;
+}
 
 function publicProblem(problem) {
   return {
@@ -14,29 +23,39 @@ function publicProblem(problem) {
     category: problem.category,
     difficulty: problem.difficulty,
     description: problem.description,
-    functionSignature: { javascript: problem.functionSignature.javascript }
+    functionSignature: {
+      javascript: problem.functionSignature.javascript,
+      python: problem.functionSignature.python
+    }
   };
 }
 
 function chooseProblem() {
   const supported = problemUtils.getAllProblems().filter((problem) =>
-    SUPPORTED_PROBLEM_IDS.has(problem.id) && problemUtils.validateProblem(problem).valid
+    SUPPORTED_PROBLEM_IDS.has(problem.id) && problemUtils.validateProblem(problem).valid &&
+    typeof problem.functionSignature.python === "string" && problem.functionSignature.python.trim()
   );
   return supported[Math.floor(Math.random() * supported.length)] || null;
 }
 
-function parseJudgeResult(stdout) {
-  const resultLine = String(stdout || "").split(/\r?\n/)
-    .filter((line) => line.startsWith(RESULT_PREFIX)).pop();
-  if (!resultLine) return null;
 
-  try {
-    const result = JSON.parse(resultLine.slice(RESULT_PREFIX.length));
-    if (!Number.isInteger(result.passed) || !Number.isInteger(result.total) || !Array.isArray(result.results)) return null;
-    return result;
-  } catch {
-    return null;
-  }
+function completeMatch(io, matchCode, outcome) {
+  const match = matchData[matchCode];
+  if (!match || match.status !== "active") return false;
+
+  clearTimeout(match.timeout);
+  match.status = outcome.status;
+  match.winnerId = outcome.winnerId || null;
+  match.winnerName = outcome.winnerName || null;
+
+  io.to(matchCode).emit("match_over", {
+    winnerId: match.winnerId,
+    winnerName: match.winnerName,
+    reason: outcome.reason,
+    results: outcome.results || null
+  });
+  io.to(matchCode).emit("lock_editor");
+  return true;
 }
 
 function matchSocketHandler(socket, io) {
@@ -69,8 +88,19 @@ function matchSocketHandler(socket, io) {
         return;
       }
 
-      matchData[roomCode] = { problem, status: "active", winner: null };
-      io.to(roomCode).emit("start_game", { problem: publicProblem(problem) });
+      const durationMs = matchDurationMs(problem.difficulty);
+      const deadlineAt = Date.now() + durationMs;
+      matchData[roomCode] = {
+        problem,
+        status: "active",
+        winnerId: null,
+        winnerName: null,
+        deadlineAt,
+        timeout: setTimeout(() => {
+          completeMatch(io, roomCode, { status: "expired", reason: "time_expired" });
+        }, Math.max(0, deadlineAt - Date.now()))
+      };
+      io.to(roomCode).emit("start_game", { problem: publicProblem(problem), deadlineAt, durationMs });
     }
   });
 
@@ -80,41 +110,44 @@ function matchSocketHandler(socket, io) {
       if (!match || match.status !== "active" || !matchRooms[matchCode]?.some((player) => player.id === socket.id)) {
         throw new Error("There is no active match for this submission.");
       }
-      if (languageId !== JAVASCRIPT_LANGUAGE_ID) {
-        throw new Error("The MVP judge currently supports JavaScript only.");
+      if (Date.now() >= match.deadlineAt) {
+        completeMatch(io, matchCode, { status: "expired", reason: "time_expired" });
+        return;
       }
-      if (typeof code !== "string" || !code.trim()) throw new Error("Submit a JavaScript solution first.");
+      const buildWrappedCode = LANGUAGE_RUNNERS.get(languageId);
+      if (!buildWrappedCode) {
+        throw new Error("The MVP judge supports JavaScript and Python only.");
+      }
+      if (typeof code !== "string" || !code.trim()) throw new Error("Submit a solution first.");
       if (code.length > 50000) throw new Error("The solution is too large to evaluate.");
 
-      const wrappedCode = buildJsWrappedCode(code, match.problem.testCases, match.problem.category);
-      const judgeResult = await runJudge0(wrappedCode, JAVASCRIPT_LANGUAGE_ID);
+      const resultToken = randomUUID();
+      const wrappedCode = buildWrappedCode(code, match.problem.testCases, match.problem.category, resultToken);
+      const judgeResult = await runJudge0(wrappedCode, languageId);
+      if (match.status !== "active" || Date.now() >= match.deadlineAt) {
+        completeMatch(io, matchCode, { status: "expired", reason: "time_expired" });
+        return;
+      }
       const statusId = judgeResult.status?.id;
+      const results = parseJudgeResult(judgeResult.stdout, resultToken, match.problem.testCases.length);
       if (statusId !== 3) {
         const error = judgeResult.compile_output || judgeResult.stderr || judgeResult.message || "The solution could not run.";
-        socket.emit("submission_result", { passed: false, error });
+        socket.emit("submission_result", { passed: false, results, error: results ? undefined : error });
         return;
       }
 
-      const results = parseJudgeResult(judgeResult.stdout);
-      if (!results) {
+      if (!results || results.passed !== results.total) {
         socket.emit("submission_result", { passed: false, error: "The judge returned an invalid test result." });
         return;
       }
 
-      const passedAll = results.total > 0 && results.passed === results.total;
-      if (!passedAll) {
-        socket.emit("submission_result", { passed: false, results });
-        return;
-      }
-
-      // Set match state before emitting so two near-simultaneous correct submissions
-      // cannot both win.
-      if (match.status === "active") {
-        match.status = "completed";
-        match.winner = socket.data.username;
-        io.to(matchCode).emit("match_over", { winner: match.winner, results });
-        socket.to(matchCode).emit("lock_editor");
-      }
+      completeMatch(io, matchCode, {
+        status: "completed",
+        reason: "solved",
+        winnerId: socket.id,
+        winnerName: socket.data.username,
+        results
+      });
     } catch (error) {
       socket.emit("submission_result", { passed: false, error: error.message });
     }
@@ -124,6 +157,7 @@ function matchSocketHandler(socket, io) {
     for (const [code, players] of Object.entries(matchRooms)) {
       matchRooms[code] = players.filter((player) => player.id !== socket.id);
       if (matchRooms[code].length === 0) {
+        clearTimeout(matchData[code]?.timeout);
         delete matchRooms[code];
         delete matchData[code];
       }

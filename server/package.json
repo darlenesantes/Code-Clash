@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "node --test tests/testLanguageRunners.js tests/testJudgeResult.js tests/testJudge0Helper.js",
+    "test:judge0": "node tests/testJudge0Live.js"
   },
   "dependencies": {
     "axios": "^1.11.0",

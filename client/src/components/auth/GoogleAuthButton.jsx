@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import authService from '../../services/api/authService';
 
 const GoogleAuthButton = ({ onSuccess, onError, disabled = false }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoaded, setGoogleLoaded] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
+  const fallbackButtonRef = useRef(null);
 
   useEffect(() => {
     // Load Google Identity Services script
@@ -12,7 +14,6 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false }) => {
     script.async = true;
     script.defer = true;
     script.onload = () => {
-      console.log('Google Identity Services loaded');
       setGoogleLoaded(true);
       initializeGoogleSignIn();
     };
@@ -42,7 +43,6 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false }) => {
         cancel_on_tap_outside: true
       });
 
-      console.log('Google Sign-In initialized with client ID:', process.env.REACT_APP_GOOGLE_CLIENT_ID);
     } catch (error) {
       console.error('Failed to initialize Google Sign-In:', error);
       onError('Failed to initialize Google Sign-In');
@@ -50,9 +50,6 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false }) => {
   };
 
   const handleGoogleResponse = async (response) => {
-    console.log('=== Google Response Received ===');
-    console.log('Response:', response);
-    
     if (!response.credential) {
       console.error('No credential received from Google');
       onError('No credential received from Google');
@@ -62,17 +59,10 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false }) => {
     setIsLoading(true);
 
     try {
-      console.log('Sending token to backend...');
-      console.log('Token:', response.credential);
-      console.log('API URL:', process.env.REACT_APP_API_URL || 'http://localhost:3001');
-
       // Call your backend with the Google token
       const result = await authService.googleAuth(response.credential);
-      
-      console.log('Backend response:', result);
 
       if (result.success) {
-        console.log('Authentication successful!');
         onSuccess(result.user);
       } else {
         console.error('Authentication failed:', result.error);
@@ -94,14 +84,11 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false }) => {
     }
 
     try {
-      console.log('Prompting Google Sign-In...');
       window.google.accounts.id.prompt((notification) => {
-        console.log('Google prompt notification:', notification);
         if (notification.isNotDisplayed()) {
-          console.log('Prompt not displayed, trying renderButton method...');
-          // Fallback: trigger sign-in directly
+          setShowFallback(true);
           window.google.accounts.id.renderButton(
-            document.getElementById('google-signin-fallback'),
+            fallbackButtonRef.current,
             {
               theme: 'outline',
               size: 'large',
@@ -154,8 +141,10 @@ const GoogleAuthButton = ({ onSuccess, onError, disabled = false }) => {
         )}
       </button>
 
-      {/* Hidden fallback button for Google's renderButton method */}
-      <div id="google-signin-fallback" className="hidden"></div>
+      <div
+        ref={fallbackButtonRef}
+        className={showFallback ? 'mt-3 flex justify-center' : 'hidden'}
+      ></div>
 
       {/* Status indicators */}
       {!googleLoaded && (
