@@ -1,245 +1,140 @@
-function _buildArrayWrapper(userCode, testCases) {
-  const testRunner = `
-function arraysEqual(a, b) {
-  return Array.isArray(a) && Array.isArray(b) &&
-    a.length === b.length &&
-    a.every((val, index) => val === b[index]);
+// The runner prints one machine-readable line after user code has run. Do not
+// use user-facing text or emoji to decide who won a match.
+const RESULT_PREFIX = "CODECLASH_RESULT:";
+
+function testCasesLiteral(testCases) {
+  return JSON.stringify(Array.isArray(testCases) ? testCases : []);
 }
 
-function runTests() {
-  const input = require('fs').readFileSync('/dev/stdin', 'utf8');
-  const lines = input.trim().split('\\n\\n');
-  lines.forEach((block, index) => {
-    const [numsLine, targetLine, ...expectedLines] = block.trim().split('\\n');
-    const nums = JSON.parse(numsLine);
-    const target = JSON.parse(targetLine);
-    const expectedList = expectedLines.map(line => JSON.parse(line));
-    let result, passed = false;
-
-    try {
-      result = twoSum(nums, target);
-      passed = expectedList.some(expected => arraysEqual(result, expected));
-    } catch (e) {
-      console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
-      return;
-    }
-
-    if (passed) {
-      console.log(\`✅ Test \${index + 1}: Passed\`);
-    } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n   Input: \${numsLine}, \${targetLine}\\n   Expected: \${JSON.stringify(expectedList)}\\n   Got: \${JSON.stringify(result)}\`);
-    }
-  });
+function runnerPreamble(testCases) {
+  return `
+const __codeClashCases = ${testCasesLiteral(testCases)};
+const __codeClashResults = [];
+function __codeClashEqual(actual, expected) {
+  return JSON.stringify(actual) === JSON.stringify(expected);
 }
-
-runTests();
+function __codeClashExpected(testCase) {
+  return testCase.expectedOutputs.map((value) => JSON.parse(value));
+}
+function __codeClashFinish() {
+  const passed = __codeClashResults.filter((result) => result.passed).length;
+  console.log('${RESULT_PREFIX}' + JSON.stringify({
+    passed,
+    total: __codeClashResults.length,
+    results: __codeClashResults
+  }));
+}
 `;
-  return `${userCode}\n${testRunner}`;
+}
+
+function _buildArrayWrapper(userCode, testCases) {
+  return `${userCode}\n${runnerPreamble(testCases)}
+for (const [index, testCase] of __codeClashCases.entries()) {
+  try {
+    const [nums, target] = testCase.input.split('\\n').map((line) => JSON.parse(line));
+    const actual = twoSum(nums, target);
+    const passed = __codeClashExpected(testCase).some((expected) => __codeClashEqual(actual, expected));
+    __codeClashResults.push({ test: index + 1, passed });
+  } catch (error) {
+    __codeClashResults.push({ test: index + 1, passed: false, error: error.message });
+  }
+}
+__codeClashFinish();`;
 }
 
 function _buildLinkedListWrapper(userCode, testCases) {
-  const testRunner = `
+  return `${userCode}\n${runnerPreamble(testCases)}
 class ListNode {
-  constructor(val = 0, next = null) {
-    this.val = val;
-    this.next = next;
-  }
+  constructor(val = 0, next = null) { this.val = val; this.next = next; }
 }
-
-function arrayToLinkedList(arr) {
-  const dummy = new ListNode(0);
-  let current = dummy;
-  for (let val of arr) {
-    current.next = new ListNode(val);
-    current = current.next;
-  }
+function arrayToLinkedList(values) {
+  const dummy = new ListNode();
+  let tail = dummy;
+  for (const value of values) { tail.next = new ListNode(value); tail = tail.next; }
   return dummy.next;
 }
-
 function linkedListToArray(head) {
-  const result = [];
-  while (head) {
-    result.push(head.val);
-    head = head.next;
+  const values = [];
+  while (head) { values.push(head.val); head = head.next; }
+  return values;
+}
+for (const [index, testCase] of __codeClashCases.entries()) {
+  try {
+    const [left, right] = testCase.input.split('\\n').map((line) => JSON.parse(line));
+    const actual = linkedListToArray(addTwoNumbers(arrayToLinkedList(left), arrayToLinkedList(right)));
+    const passed = __codeClashExpected(testCase).some((expected) => __codeClashEqual(actual, expected));
+    __codeClashResults.push({ test: index + 1, passed });
+  } catch (error) {
+    __codeClashResults.push({ test: index + 1, passed: false, error: error.message });
   }
-  return result;
 }
-
-function arraysEqual(a, b) {
-  return Array.isArray(a) && Array.isArray(b) &&
-    a.length === b.length &&
-    a.every((val, index) => val === b[index]);
-}
-
-function runTests() {
-  const input = require('fs').readFileSync('/dev/stdin', 'utf8');
-  const blocks = input.trim().split('\\n\\n');
-
-  blocks.forEach((block, index) => {
-    const [inputLine, expectedLine] = block.trim().split('\\n');
-    const inputArr = JSON.parse(inputLine);
-    const expected = JSON.parse(expectedLine);
-
-    let resultArr = [];
-    try {
-      const l1 = arrayToLinkedList(inputArr[0]);
-      const l2 = arrayToLinkedList(inputArr[1]);
-      const result = addTwoNumbers(l1, l2);
-      resultArr = linkedListToArray(result);
-    } catch (e) {
-      console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
-      return;
-    }
-
-    const passed = arraysEqual(resultArr, expected);
-    if (passed) {
-      console.log(\`✅ Test \${index + 1}: Passed\`);
-    } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${JSON.stringify(inputArr)}\\n  Expected: \${JSON.stringify(expected)}\\n  Got: \${JSON.stringify(resultArr)}\`);
-    }
-  });
-}
-
-runTests();
-`;
-  return `${userCode}\n${testRunner}`;
+__codeClashFinish();`;
 }
 
 function _buildBinaryTreeWrapper(userCode, testCases) {
-  const testRunner = `
+  return `${userCode}\n${runnerPreamble(testCases)}
 class TreeNode {
-  constructor(val, left = null, right = null) {
-    this.val = val;
-    this.left = left;
-    this.right = right;
-  }
+  constructor(val, left = null, right = null) { this.val = val; this.left = left; this.right = right; }
 }
-
-function arrayToBinaryTree(arr) {
-  if (!arr.length || arr[0] === null) return null;
-  const root = new TreeNode(arr[0]);
+function arrayToBinaryTree(values) {
+  if (!values.length || values[0] === null) return null;
+  const root = new TreeNode(values[0]);
   const queue = [root];
-  let i = 1;
-  while (i < arr.length) {
+  let cursor = 1;
+  while (cursor < values.length) {
     const node = queue.shift();
-    if (arr[i] !== null && arr[i] !== undefined) {
-      node.left = new TreeNode(arr[i]);
-      queue.push(node.left);
+    for (const side of ['left', 'right']) {
+      if (cursor >= values.length) break;
+      const value = values[cursor++];
+      if (value !== null) { node[side] = new TreeNode(value); queue.push(node[side]); }
     }
-    i++;
-    if (i < arr.length && arr[i] !== null && arr[i] !== undefined) {
-      node.right = new TreeNode(arr[i]);
-      queue.push(node.right);
-    }
-    i++;
   }
   return root;
 }
-
-function arraysEqual(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
+for (const [index, testCase] of __codeClashCases.entries()) {
+  try {
+    const actual = inorderTraversal(arrayToBinaryTree(JSON.parse(testCase.input)));
+    const passed = __codeClashExpected(testCase).some((expected) => __codeClashEqual(actual, expected));
+    __codeClashResults.push({ test: index + 1, passed });
+  } catch (error) {
+    __codeClashResults.push({ test: index + 1, passed: false, error: error.message });
+  }
 }
-
-function runTests() {
-  const input = require('fs').readFileSync('/dev/stdin', 'utf8');
-  const blocks = input.trim().split('\\n\\n');
-
-  blocks.forEach((block, index) => {
-    const [inputLine, ...expectedLines] = block.trim().split('\\n');
-    const inputArr = JSON.parse(inputLine);
-    const expectedList = expectedLines
-        .map(line => {
-            try {
-            return JSON.parse(line);
-            } catch {
-            return undefined;
-            }
-        })
-        .filter(e => e !== undefined);
-
-    let resultArr = [];
-    try {
-      const root = arrayToBinaryTree(inputArr);
-      const result = inorderTraversal(root);
-      resultArr = Array.isArray(result) ? result : [];
-    } catch (e) {
-      console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
-      return;
-    }
-
-    const passed = expectedList.some(expected => JSON.stringify(resultArr) === JSON.stringify(expected));
-    if (passed) {
-      console.log(\`✅ Test \${index + 1}: Passed\`);
-    } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${inputLine}\\n  Expected: \${JSON.stringify(expectedList)}\\n  Got: \${JSON.stringify(resultArr)}\`);
-    }
-  });
-}
-
-runTests();
-`;
-  return `${userCode}\n${testRunner}`;
+__codeClashFinish();`;
 }
 
 function _buildGraphWrapper(userCode, testCases) {
-  const testRunner = `
-function runTests() {
-  const input = require('fs').readFileSync('/dev/stdin', 'utf8');
-  const blocks = input.trim().split('\\n\\n');
-
-  blocks.forEach((block, index) => {
-    const [nLine, edgesLine, ...expectedLines] = block.trim().split('\\n');
-    const n = JSON.parse(nLine);
-    const edges = JSON.parse(edgesLine);
-    const expectedList = expectedLines.map(line => JSON.parse(line));
-
-    let result;
-    try {
-      result = countComponents(n, edges); // expects user-defined function
-    } catch (e) {
-      console.log(\`❌ Test \${index + 1}: Error - \${e.message}\`);
-      return;
-    }
-
-    const passed = expectedList.some(expected => result === expected);
-    if (passed) {
-      console.log(\`✅ Test \${index + 1}: Passed\`);
-    } else {
-      console.log(\`❌ Test \${index + 1}: Failed\\n  Input: \${nLine}, \${edgesLine}\\n  Expected: \${JSON.stringify(expectedList)}\\n  Got: \${result}\`);
-    }
-  });
+  return `${userCode}\n${runnerPreamble(testCases)}
+for (const [index, testCase] of __codeClashCases.entries()) {
+  try {
+    const [n, edges] = testCase.input.split('\\n').map((line) => JSON.parse(line));
+    const actual = countComponents(n, edges);
+    const passed = __codeClashExpected(testCase).some((expected) => __codeClashEqual(actual, expected));
+    __codeClashResults.push({ test: index + 1, passed });
+  } catch (error) {
+    __codeClashResults.push({ test: index + 1, passed: false, error: error.message });
+  }
+}
+__codeClashFinish();`;
 }
 
-runTests();
-`;
-  return `${userCode}\n${testRunner}`;
-}
-
-function buildJsWrappedCode(userCode, testCases, type = "array") {
-  switch (type.toLowerCase()) {
-    case "linkedlist":
-      return _buildLinkedListWrapper(userCode, testCases);
-    case "binarytree":
-      return _buildBinaryTreeWrapper(userCode, testCases);
-    case "graph":
-      return _buildGraphWrapper(userCode, testCases);
+function buildJsWrappedCode(userCode, testCases, type = "arrays") {
+  switch (type.toLowerCase().replace(/\s/g, "")) {
+    case "linkedlist": return _buildLinkedListWrapper(userCode, testCases);
+    case "binarytree": return _buildBinaryTreeWrapper(userCode, testCases);
+    case "graph": return _buildGraphWrapper(userCode, testCases);
     case "array":
-    default:
-      return _buildArrayWrapper(userCode, testCases);
+    case "arrays": return _buildArrayWrapper(userCode, testCases);
+    default: throw new Error(`No JavaScript runner is configured for problem category: ${type}`);
   }
 }
 
-function formatTestCasesAsStdin(testCases, type = "array") {
-    return testCases.map(({ input, expectedOutputs }) => {
-    const [part1, part2] = input.trim().split('\n');
-    const inputLine = type === "linkedlist" ? `[${part1},${part2}]` : `${part1}\n${part2}`;
-    const expectedLines = expectedOutputs.map(out => `${out}`).join('\n');
-    return `${inputLine}\n${expectedLines}`;
-    }).join('\n\n');
+// Kept for the standalone Judge0 scripts. The match runner embeds the trusted
+// test cases in its wrapper, so user input cannot alter them.
+function formatTestCasesAsStdin(testCases) {
+  return (testCases || []).map(({ input, expectedOutputs }) =>
+    `${input}\n${(expectedOutputs || []).join('\n')}`
+  ).join('\n\n');
 }
 
-
-module.exports = {
-  buildJsWrappedCode,
-  formatTestCasesAsStdin
-};
+module.exports = { RESULT_PREFIX, buildJsWrappedCode, formatTestCasesAsStdin };

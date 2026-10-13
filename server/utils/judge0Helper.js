@@ -1,40 +1,73 @@
 const axios = require("axios");
 
-const JUDGE0_URL = process.env.JUDGE0_API_URL;
-
-const headers = {
-  "Content-Type": "application/json",
-  "X-RapidAPI-Key": process.env.JUDGE0_API_KEY,
-  "X-RapidAPI-Host": process.env.JUDGE0_API_HOST
-};
-
-function base64Encode(str) {
-  return Buffer.from(str).toString("base64");
+function base64Encode(value) {
+  return Buffer.from(value || "", "utf8").toString("base64");
 }
 
-async function runJudge0(code, languageId, expectedOutput = "", stdin = "") {
+function base64Decode(value) {
+  return value ? Buffer.from(value, "base64").toString("utf8") : "";
+}
+
+function getJudge0ConfigStatus() {
+  const missing = [];
+  if (!process.env.JUDGE0_API_URL) missing.push("JUDGE0_API_URL");
+
+  const hasKey = Boolean(process.env.JUDGE0_API_KEY);
+  const hasHost = Boolean(process.env.JUDGE0_API_HOST);
+  if (hasKey !== hasHost) {
+    missing.push(hasKey ? "JUDGE0_API_HOST" : "JUDGE0_API_KEY");
+  }
+
+  if (process.env.JUDGE0_API_URL) {
+    try {
+      new URL(process.env.JUDGE0_API_URL);
+    } catch {
+      missing.push("JUDGE0_API_URL (valid URL)");
+    }
+  }
+
+  return { configured: missing.length === 0, missing };
+}
+
+function judgeUrl() {
+  const config = getJudge0ConfigStatus();
+  if (!config.configured) {
+    throw new Error(`Judge0 is not configured. Missing: ${config.missing.join(", ")}`);
+  }
+
+  const url = new URL(process.env.JUDGE0_API_URL);
+  url.searchParams.set("base64_encoded", "true");
+  url.searchParams.set("wait", "true");
+  return url.toString();
+}
+
+async function runJudge0(code, languageId, stdin = "") {
+  const headers = { "Content-Type": "application/json" };
+  if (process.env.JUDGE0_API_KEY) headers["X-RapidAPI-Key"] = process.env.JUDGE0_API_KEY;
+  if (process.env.JUDGE0_API_HOST) headers["X-RapidAPI-Host"] = process.env.JUDGE0_API_HOST;
+
   const payload = {
     source_code: base64Encode(code),
     language_id: languageId,
     stdin: base64Encode(stdin),
-    expected_output: base64Encode(expectedOutput),
-    time_limit: 5,
+    cpu_time_limit: 5,
     memory_limit: 128000
   };
 
-
-  console.log("🌐 Judge0 URL:", JUDGE0_URL);
-  console.log("🧾 Headers:", headers);    
-  console.log("📦 Sending payload to Judge0:", JSON.stringify(payload, null, 2));
-
   try {
-    const response = await axios.post(JUDGE0_URL, payload, { headers });
-    return response.data;
-  } catch (err) {
-    console.error("❌ Judge0 API error:", err.response?.data || err.message);
-    throw err;
+    const response = await axios.post(judgeUrl(), payload, { headers, timeout: 15000 });
+    const data = response.data || {};
+    return {
+      ...data,
+      stdout: base64Decode(data.stdout),
+      stderr: base64Decode(data.stderr),
+      compile_output: base64Decode(data.compile_output),
+      message: base64Decode(data.message)
+    };
+  } catch (error) {
+    const detail = error.response?.data?.message || error.response?.data?.error || error.message;
+    throw new Error(`Judge0 request failed: ${detail}`);
   }
 }
 
-
-module.exports = { runJudge0 }; 
+module.exports = { getJudge0ConfigStatus, runJudge0 };

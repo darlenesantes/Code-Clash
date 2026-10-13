@@ -1,10 +1,26 @@
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
 const cors = require("cors");
 const { OAuth2Client } = require('google-auth-library');
+const { Server } = require("socket.io");
+const matchSocketHandler = require("./sockets/matchSocket");
+const { getJudge0ConfigStatus } = require("./utils/judge0Helper");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    credentials: true
+  }
+});
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+io.on("connection", (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
+  matchSocketHandler(socket, io);
+});
 
 // CORS Configuration
 app.use(cors({
@@ -193,10 +209,12 @@ app.post('/api/game/submit', (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
+  const judge0 = getJudge0ConfigStatus();
   res.json({
     status: 'CodeClash Server Online',
     timestamp: new Date().toISOString(),
     googleAuth: process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Missing',
+    judge0: judge0.configured ? 'Configured' : `Missing: ${judge0.missing.join(', ')}`,
     features: {
       authentication: 'Active',
       gaming: 'Active'
@@ -252,13 +270,15 @@ app.use((error, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
+  const judge0 = getJudge0ConfigStatus();
   console.log('==========================================');
   console.log('CodeClash Server Started');
   console.log(`Server running on: http://localhost:${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`API docs: http://localhost:${PORT}/api`);
   console.log(`Google OAuth: ${process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Missing'}`);
+  console.log(`Judge0: ${judge0.configured ? 'Configured' : `Missing ${judge0.missing.join(', ')}`}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('==========================================');
   console.log('');

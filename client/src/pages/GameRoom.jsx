@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Play, Send, Clock, User, CheckCircle, XCircle, Code, MessageCircle, Trophy, Target, Zap, Settings, Copy, RotateCcw, Download, Users, Crown, Wifi, WifiOff, Swords, Monitor, Activity } from 'lucide-react';
 import VictoryPopup from '../components/VictoryPopup'; 
+import gameSocket from '../sockets/socket';
 
 const GameRoom = ({ 
   navigate, 
   roomCode, 
-  language = 'javascript', 
   user = { name: 'Player1', avatar: null },
   onUpdateUser // CRITICAL: This comes from App.jsx for victory updates
 }) => {
@@ -14,27 +14,24 @@ const GameRoom = ({
   const [newMessage, setNewMessage] = useState('');
   const [timeRemaining, setTimeRemaining] = useState(15 * 60); // 15 minutes
   const [myProgress, setMyProgress] = useState(0);
-  const [opponentProgress, setOpponentProgress] = useState(0);
-  const [gameStatus, setGameStatus] = useState('active'); // active, finished, victory, defeat
+  const [opponentProgress] = useState(0);
+  const [gameStatus, setGameStatus] = useState('waiting'); // waiting, active, finished, victory, defeat
+  const [matchStatus, setMatchStatus] = useState('waiting');
+  const [serverProblem, setServerProblem] = useState(null);
+  const [submissionMessage, setSubmissionMessage] = useState('');
+  const [editorLocked, setEditorLocked] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
   const [testResults, setTestResults] = useState(null);
-  const [isTyping, setIsTyping] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('connected');
-  const [selectedLanguage, setSelectedLanguage] = useState(language);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   
   const messagesEndRef = useRef(null);
   const codeEditorRef = useRef(null);
+  const guestUsernameRef = useRef(`Player-${Math.random().toString(36).slice(2, 7)}`);
 
   const languages = [
-    { id: 'javascript', name: 'JavaScript', color: 'text-yellow-400', starter: '// Start coding here...\nfunction twoSum(nums, target) {\n    \n}' },
-    { id: 'python', name: 'Python', color: 'text-blue-400', starter: '# Start coding here...\ndef two_sum(nums, target):\n    pass' },
-    { id: 'java', name: 'Java', color: 'text-orange-400', starter: '// Start coding here...\npublic int[] twoSum(int[] nums, int target) {\n    \n}' },
-    { id: 'cpp', name: 'C++', color: 'text-purple-400', starter: '// Start coding here...\nvector<int> twoSum(vector<int>& nums, int target) {\n    \n}' },
-    { id: 'csharp', name: 'C#', color: 'text-green-400', starter: '// Start coding here...\npublic int[] TwoSum(int[] nums, int target) {\n    \n}' },
-    { id: 'go', name: 'Go', color: 'text-cyan-400', starter: '// Start coding here...\nfunc twoSum(nums []int, target int) []int {\n    \n}' },
-    { id: 'rust', name: 'Rust', color: 'text-red-400', starter: '// Start coding here...\nimpl Solution {\n    pub fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32> {\n        \n    }\n}' },
-    { id: 'typescript', name: 'TypeScript', color: 'text-blue-300', starter: '// Start coding here...\nfunction twoSum(nums: number[], target: number): number[] {\n    \n}' }
+    { id: 'javascript', name: 'JavaScript', color: 'text-yellow-400', starter: '// Start coding here...\nfunction twoSum(nums, target) {\n    \n}' }
   ];
 
   const handleLanguageChange = (languageId) => {
@@ -55,7 +52,7 @@ const GameRoom = ({
       "Let's see who's the better coder",
       "This looks like a fun challenge",
       "May the best algorithm win!",
-      "gl hf! 💪",
+      "gl hf! Ã°Å¸â€™Âª",
       "Ready when you are"
     ],
     midGame: [
@@ -79,7 +76,7 @@ const GameRoom = ({
     victory: [
       "GG! Well played",
       "nice work, you got me",
-      "well done! 👏",
+      "well done! Ã°Å¸â€˜Â",
       "you beat me to it",
       "great job there",
       "gg wp",
@@ -110,8 +107,8 @@ const GameRoom = ({
     ]
   };
 
-  // Sample problem
-  const problem = {
+  // The current server sends the selected JSON problem's description.
+  const fallbackProblem = {
     title: "Two Sum Challenge",
     difficulty: "EASY",
     description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.",
@@ -126,6 +123,89 @@ const GameRoom = ({
     ]
   };
 
+  const problem = typeof serverProblem === 'string'
+    ? { ...fallbackProblem, description: serverProblem }
+    : serverProblem
+      ? { ...fallbackProblem, ...serverProblem, examples: serverProblem.examples || [] }
+      : fallbackProblem;
+
+  const username = user?.displayName || user?.name || guestUsernameRef.current;
+  const userId = user?.id;
+  const userEmail = user?.email;
+
+  // Join the real Socket.IO match and listen for server-owned match events.
+  useEffect(() => {
+    if (!roomCode) {
+      setConnectionStatus('error');
+      return undefined;
+    }
+
+    const handleConnectionStatus = ({ status }) => {
+      setConnectionStatus(status);
+      if (status === 'connected') {
+        gameSocket.joinMatch(roomCode, username);
+      }
+    };
+
+    const handleGameStarted = ({ problem: selectedProblem }) => {
+      setServerProblem(selectedProblem);
+      setMatchStatus('active');
+      setGameStatus('active');
+      setTimeRemaining(15 * 60);
+      setCode(selectedProblem?.functionSignature?.javascript || '// Start coding here...\n');
+      setSubmissionMessage('');
+    };
+
+    const handleSubmissionResult = ({ results, error }) => {
+      const passed = results?.passed || 0;
+      const total = results?.total || 0;
+      setSubmissionMessage(error || (total ? `${passed}/${total} server tests passed.` : 'The submitted solution did not pass all tests.'));
+      setTestResults({
+        status: passed === total && total > 0 ? 'passed' : passed > 0 ? 'partial' : 'failed',
+        passed,
+        total,
+        details: results?.results || [{ input: 'Server evaluation', passed: false }]
+      });
+    };
+
+    const handleMatchOver = ({ winner, results }) => {
+      const didWin = winner === username;
+      setMatchStatus('completed');
+      setGameStatus(didWin ? 'victory' : 'defeat');
+      setEditorLocked(true);
+      setSubmissionMessage(
+        didWin ? 'Your solution won the match.' : `${winner || 'Your opponent'} won the match.`
+      );
+      if (didWin && results) {
+        setTestResults({
+          status: 'passed',
+          passed: results.passed,
+          total: results.total,
+          details: results.results
+        });
+      }
+      setShowVictory(didWin);
+    };
+
+    const handleLockEditor = () => setEditorLocked(true);
+
+    gameSocket.on('connection_status', handleConnectionStatus);
+    gameSocket.onGameStarted(handleGameStarted);
+    gameSocket.on('submission_result', handleSubmissionResult);
+    gameSocket.on('match_over', handleMatchOver);
+    gameSocket.on('lock_editor', handleLockEditor);
+    gameSocket.connect({ id: userId, name: username, email: userEmail });
+
+    return () => {
+      gameSocket.off('connection_status', handleConnectionStatus);
+      gameSocket.off('game_started', handleGameStarted);
+      gameSocket.off('submission_result', handleSubmissionResult);
+      gameSocket.off('match_over', handleMatchOver);
+      gameSocket.off('lock_editor', handleLockEditor);
+      gameSocket.disconnect();
+    };
+  }, [roomCode, username, userId, userEmail]);
+
   // Initialize chat with pre-battle message
   useEffect(() => {
     const initialMessage = opponentMessages.start[Math.floor(Math.random() * opponentMessages.start.length)];
@@ -139,6 +219,10 @@ const GameRoom = ({
 
   // Timer countdown
   useEffect(() => {
+    if (matchStatus !== 'active' || gameStatus !== 'active') {
+      return undefined;
+    }
+
     const timer = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 0) {
@@ -150,44 +234,7 @@ const GameRoom = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
-
-  // Opponent progress simulation with realistic backtracking
-  useEffect(() => {
-    let progressCount = 0;
-    
-    const progressTimer = setInterval(() => {
-      if (gameStatus === 'active' && opponentProgress < 100) {
-        setOpponentProgress(prev => {
-          progressCount++;
-          
-          // Realistic backtracking: go back 5-15% once every 7-10 increments
-          if (progressCount % (7 + Math.floor(Math.random() * 4)) === 0 && prev > 20) {
-            const backtrack = 5 + Math.random() * 10; // 5-15% back
-            return Math.max(prev - backtrack, 0);
-          }
-          
-          const increment = Math.random() * 3 + 1; // 1-4% per interval
-          const newProgress = Math.min(prev + increment, 100);
-          
-          // Trigger opponent messages based on progress
-          if (newProgress > 30 && newProgress < 35 && prev <= 30) {
-            sendOpponentMessage('midGame');
-          } else if (newProgress > 80 && newProgress < 85 && prev <= 80) {
-            sendOpponentMessage('nearEnd');
-          } else if (newProgress >= 100 && prev < 100) {
-            setGameStatus('defeat');
-            setShowVictory(true);
-            sendOpponentMessage('defeat');
-          }
-          
-          return newProgress;
-        });
-      }
-    }, 2000 + Math.random() * 3000); // Random interval 2-5 seconds
-
-    return () => clearInterval(progressTimer);
-  }, [gameStatus, opponentProgress]);
+  }, [matchStatus, gameStatus]);
 
   // Calculate my progress based on code
   useEffect(() => {
@@ -212,41 +259,17 @@ const GameRoom = ({
       if (code.includes('target') && code.includes('nums')) progress += 10;
       if (code.includes('[') && code.includes(']')) progress += 10;
       
-      // Complete solution detection
-      if (code.includes('return [') && (code.includes('i') || code.includes('0')) && (code.includes('j') || code.includes('1'))) {
-        progress = 100;
-        if (myProgress < 100) {
-          setGameStatus('victory');
-          setShowVictory(true);
-          sendOpponentMessage('victory');
-        }
-      }
-      
       return Math.min(progress, 100);
     };
 
     const newProgress = calculateProgress();
     setMyProgress(newProgress);
-  }, [code, myProgress]);
+  }, [code]);
 
   // Auto-scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const sendOpponentMessage = (phase) => {
-    const messageList = opponentMessages[phase];
-    const randomMessage = messageList[Math.floor(Math.random() * messageList.length)];
-    
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        sender: 'opponent',
-        text: randomMessage,
-        timestamp: new Date()
-      }]);
-    }, 1000 + Math.random() * 2000);
-  };
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
@@ -272,62 +295,32 @@ const GameRoom = ({
   };
 
   const handleRunTests = () => {
-    // Simulate test running
-    setTestResults('running');
-    
-    setTimeout(() => {
-      const hasBasicStructure = code.includes('return') && code.length > 50;
-      const hasCompleteLogic = code.includes('return [') && (code.includes('i') || code.includes('j'));
-      
-      if (hasCompleteLogic) {
-        setTestResults({
-          status: 'passed',
-          passed: 3,
-          total: 3,
-          details: [
-            { input: "[2,7,11,15], 9", expected: "[0,1]", actual: "[0,1]", passed: true },
-            { input: "[3,2,4], 6", expected: "[1,2]", actual: "[1,2]", passed: true },
-            { input: "[3,3], 6", expected: "[0,1]", actual: "[0,1]", passed: true }
-          ]
-        });
-      } else if (hasBasicStructure) {
-        setTestResults({
-          status: 'partial',
-          passed: 1,
-          total: 3,
-          details: [
-            { input: "[2,7,11,15], 9", expected: "[0,1]", actual: "[0,1]", passed: true },
-            { input: "[3,2,4], 6", expected: "[1,2]", actual: "undefined", passed: false },
-            { input: "[3,3], 6", expected: "[0,1]", actual: "undefined", passed: false }
-          ]
-        });
-      } else {
-        setTestResults({
-          status: 'failed',
-          passed: 0,
-          total: 3,
-          details: [
-            { input: "[2,7,11,15], 9", expected: "[0,1]", actual: "Error", passed: false },
-            { input: "[3,2,4], 6", expected: "[1,2]", actual: "Error", passed: false },
-            { input: "[3,3], 6", expected: "[0,1]", actual: "Error", passed: false }
-          ]
-        });
-      }
-    }, 2000);
+    setSubmissionMessage('Server tests run when you submit your solution.');
   };
 
   const handleSubmit = () => {
-    if (myProgress >= 100) {
-      setGameStatus('victory');
-      setShowVictory(true);
-    } else {
-      // Show submission confirmation
-      const confirmed = window.confirm('Are you sure you want to submit? Your solution may not be complete.');
-      if (confirmed) {
-        setGameStatus('finished');
-        setShowVictory(true);
-      }
+    if (matchStatus !== 'active' || editorLocked || !gameSocket.isSocketConnected()) {
+      return;
     }
+
+    const languageIds = {
+      javascript: 63,
+      python: 71,
+      java: 62,
+      cpp: 54,
+      csharp: 51,
+      go: 60,
+      rust: 73,
+      typescript: 74
+    };
+
+    setTestResults('running');
+    setSubmissionMessage('Submitting solution to the server...');
+    gameSocket.submitCode({
+      matchCode: roomCode,
+      code,
+      languageId: languageIds[selectedLanguage] || 63
+    });
   };
 
   const formatTime = (seconds) => {
@@ -335,6 +328,35 @@ const GameRoom = ({
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (matchStatus === 'waiting') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex items-center justify-center px-6">
+        <div className="max-w-md w-full bg-gray-800/60 border border-gray-700 rounded-2xl p-8 text-center">
+          <Users className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Waiting for your opponent</h1>
+          <p className="text-gray-300 mb-4">Share this room code with the second player:</p>
+          <div className="text-3xl font-mono font-bold text-cyan-400 tracking-widest mb-6">
+            {roomCode || 'NO ROOM'}
+          </div>
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-300">
+            {connectionStatus === 'connected' ? (
+              <Wifi className="w-4 h-4 text-green-400" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-red-400" />
+            )}
+            <span>{connectionStatus === 'connected' ? 'Connected Ã¢â‚¬â€ waiting for player 2' : 'Connecting to match server...'}</span>
+          </div>
+          <button
+            onClick={() => navigate('battle-arena')}
+            className="mt-6 text-gray-400 hover:text-white transition-colors"
+          >
+            Leave match
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
@@ -396,6 +418,9 @@ const GameRoom = ({
               
               <div className="space-y-4">
                 <h3 className="text-lg font-bold text-white">Examples:</h3>
+                {problem.examples.length === 0 && (
+                  <p className="text-sm text-gray-400">Examples are evaluated securely when you submit.</p>
+                )}
                 {problem.examples.map((example, index) => (
                   <div key={index} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
                     <div className="text-sm text-gray-400 mb-1">Input:</div>
@@ -512,6 +537,7 @@ const GameRoom = ({
                 ref={codeEditorRef}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
+                disabled={editorLocked || matchStatus !== 'active'}
                 className="w-full h-full bg-gray-900 text-white p-4 font-mono text-sm resize-none focus:outline-none"
                 placeholder="// Start coding here..."
                 spellCheck="false"
@@ -550,6 +576,11 @@ const GameRoom = ({
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+            {submissionMessage && (
+              <div className="bg-gray-900 border-t border-gray-700 px-4 py-3 text-sm text-gray-300 whitespace-pre-wrap">
+                {submissionMessage}
               </div>
             )}
           </div>

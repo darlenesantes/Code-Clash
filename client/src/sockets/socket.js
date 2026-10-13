@@ -10,6 +10,7 @@ class GameSocket {
   connect(user) {
     if (this.socket && this.isConnected) {
       console.log('Socket already connected');
+      this.emit('connection_status', { status: 'connected' });
       return;
     }
 
@@ -129,6 +130,18 @@ class GameSocket {
       this.emit('game_started', data);
     });
 
+    this.socket.on('submission_result', (data) => {
+      this.emit('submission_result', data);
+    });
+
+    this.socket.on('match_over', (data) => {
+      this.emit('match_over', data);
+    });
+
+    this.socket.on('lock_editor', () => {
+      this.emit('lock_editor');
+    });
+
     this.socket.on('server_message', (message) => {
       console.log('Server message received:', message);
       this.emit('server_message', message);
@@ -216,6 +229,22 @@ class GameSocket {
   }
 
   // Socket action methods
+  joinMatch(matchCode, username) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('join_match', { matchCode, username });
+    } else {
+      console.error('Socket not connected, cannot join match');
+    }
+  }
+
+  submitCode(submissionData) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('submit_code', submissionData);
+    } else {
+      console.error('Socket not connected, cannot submit code');
+    }
+  }
+
   joinRoom(roomCode, userInfo) {
     if (this.socket && this.isConnected) {
       this.socket.emit('join_room', {
