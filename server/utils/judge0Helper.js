@@ -8,25 +8,41 @@ function base64Decode(value) {
   return value ? Buffer.from(value, "base64").toString("utf8") : "";
 }
 
-function getJudge0ConfigStatus() {
+function getJudge0ConfigStatus(env = process.env) {
   const missing = [];
-  if (!process.env.JUDGE0_API_URL) missing.push("JUDGE0_API_URL");
+  const apiUrl = (env.JUDGE0_API_URL || '').trim();
+  const apiKey = (env.JUDGE0_API_KEY || '').trim();
+  const apiHost = (env.JUDGE0_API_HOST || '').trim();
+  if (!apiUrl) missing.push("JUDGE0_API_URL");
 
-  const hasKey = Boolean(process.env.JUDGE0_API_KEY);
-  const hasHost = Boolean(process.env.JUDGE0_API_HOST);
+  const hasKey = Boolean(apiKey);
+  const hasHost = Boolean(apiHost);
   if (hasKey !== hasHost) {
     missing.push(hasKey ? "JUDGE0_API_HOST" : "JUDGE0_API_KEY");
   }
 
-  if (process.env.JUDGE0_API_URL) {
+  if (apiUrl) {
     try {
-      new URL(process.env.JUDGE0_API_URL);
+      const url = new URL(apiUrl);
+      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password ||
+          !/\/submissions\/?$/.test(url.pathname) || url.hash ||
+          /^your[-_]/i.test(url.hostname) ||
+          (env.NODE_ENV === 'production' && url.protocol !== 'https:')) {
+        missing.push('JUDGE0_API_URL (valid submissions endpoint)');
+      }
+      if (url.hostname.endsWith('.rapidapi.com')) {
+        if (!hasKey) missing.push('JUDGE0_API_KEY');
+        if (!hasHost) missing.push('JUDGE0_API_HOST');
+        if (hasHost && apiHost !== url.hostname) missing.push('JUDGE0_API_HOST (must match endpoint host)');
+      }
     } catch {
       missing.push("JUDGE0_API_URL (valid URL)");
     }
   }
+  if (/^(your[-_]|replace[-_]|placeholder)/i.test(apiKey)) missing.push('JUDGE0_API_KEY (placeholder)');
+  if (/^(your[-_]|replace[-_]|placeholder)/i.test(apiHost)) missing.push('JUDGE0_API_HOST (placeholder)');
 
-  return { configured: missing.length === 0, missing };
+  return { configured: missing.length === 0, missing: [...new Set(missing)] };
 }
 
 function judgeUrl() {
@@ -35,7 +51,7 @@ function judgeUrl() {
     throw new Error(`Judge0 is not configured. Missing: ${config.missing.join(", ")}`);
   }
 
-  const url = new URL(process.env.JUDGE0_API_URL);
+  const url = new URL(process.env.JUDGE0_API_URL.trim());
   url.searchParams.set("base64_encoded", "true");
   url.searchParams.set("wait", "true");
   return url.toString();
@@ -43,8 +59,8 @@ function judgeUrl() {
 
 async function runJudge0(code, languageId, stdin = "") {
   const headers = { "Content-Type": "application/json" };
-  if (process.env.JUDGE0_API_KEY) headers["X-RapidAPI-Key"] = process.env.JUDGE0_API_KEY;
-  if (process.env.JUDGE0_API_HOST) headers["X-RapidAPI-Host"] = process.env.JUDGE0_API_HOST;
+  if (process.env.JUDGE0_API_KEY) headers["X-RapidAPI-Key"] = process.env.JUDGE0_API_KEY.trim();
+  if (process.env.JUDGE0_API_HOST) headers["X-RapidAPI-Host"] = process.env.JUDGE0_API_HOST.trim();
 
   const payload = {
     source_code: base64Encode(code),

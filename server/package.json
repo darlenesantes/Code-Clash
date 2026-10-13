@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "node --test tests/testLanguageRunners.js tests/testJudgeResult.js tests/testJudge0Helper.js tests/testMatchRecovery.js",
+    "test": "node --test tests/testLanguageRunners.js tests/testJudgeResult.js tests/testJudge0Helper.js tests/testMatchRecovery.js tests/testDeploymentConfig.js",
     "test:judge0": "node tests/testJudge0Live.js"
   },
   "dependencies": {

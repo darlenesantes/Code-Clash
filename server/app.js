@@ -1,4 +1,5 @@
-require("dotenv").config();
+// Production uses host-provided variables, never a private local .env file.
+if (process.env.NODE_ENV !== 'production') require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
@@ -6,8 +7,16 @@ const { OAuth2Client } = require('google-auth-library');
 const { Server } = require("socket.io");
 const matchSocketHandler = require("./sockets/matchSocket");
 const { getJudge0ConfigStatus } = require("./utils/judge0Helper");
+const { getServerConfig } = require("./utils/serverConfig");
 
-const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:3000";
+let config;
+try {
+  config = getServerConfig();
+} catch (error) {
+  console.error(`Server configuration error:\n${error.message}`);
+  process.exit(1);
+}
+const { clientOrigin } = config;
 
 const app = express();
 const server = http.createServer(app);
@@ -17,7 +26,7 @@ const io = new Server(server, {
     credentials: true
   }
 });
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const client = new OAuth2Client(config.googleClientId);
 
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
@@ -67,7 +76,7 @@ app.post('/api/auth/google', async (req, res) => {
 
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: config.googleClientId,
     });
 
     const payload = ticket.getPayload();
@@ -227,7 +236,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'CodeClash Server Online',
     timestamp: new Date().toISOString(),
-    googleAuth: process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Missing',
+    googleAuth: config.googleClientId ? 'Configured (login not verified)' : 'Missing',
     judge0: judge0.configured ? 'Configured (execution not verified)' : `Missing: ${judge0.missing.join(', ')}`,
     judge0Verification: 'Run npm run test:judge0 --workspace=server to verify real execution. This endpoint checks configuration only.',
     features: {
@@ -284,8 +293,8 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+const PORT = config.port;
+server.listen(PORT, '0.0.0.0', () => {
   const judge0 = getJudge0ConfigStatus();
   console.log('==========================================');
   console.log('CodeClash Server Started');

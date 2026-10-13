@@ -15,7 +15,7 @@ class GameSocket {
       return;
     }
 
-    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
+    const socketUrl = (process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001').trim().replace(/\/+$/, '');
     
     console.log('Connecting to socket:', socketUrl);
     
