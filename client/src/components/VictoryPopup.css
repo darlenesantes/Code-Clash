@@ -1,0 +1,38 @@
+.victory-confetti-particle {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation-name: victory-confetti-fall;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: both;
+}
+
+@keyframes victory-confetti-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--confetti-drift), 100vh, 0) rotate(var(--confetti-rotation));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .victory-confetti {
+    display: none;
+  }
+
+  .victory-popup *,
+  .victory-popup *::before,
+  .victory-popup *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

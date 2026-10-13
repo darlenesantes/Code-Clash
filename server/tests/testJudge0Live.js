@@ -1,4 +1,4 @@
-// Uses the configured Judge0 endpoint/key; makes 14 submissions on a successful run.
+// Uses the configured Judge0 endpoint/key; makes 16 submissions on a successful run.
 // Run: npm run test:judge0 --workspace=server
 const { verifySubmission, reportFailure } = require('./judge0TestHelper');
 const solutions = require('./fixtures/solutions');
@@ -15,7 +15,9 @@ async function main() {
     ] : [
       { code: 'function twoSum() { return [0,0]; }' },
       { code: 'function twoSum() { throw new Error("runtime error"); }' },
-      { code: 'function twoSum( {', expectStructured: false }
+      { code: 'function twoSum( {', expectStructured: false },
+      { code: 'for (let i=0;i<10;i++) __codeClashResults.push({test:i+1,passed:true}); __codeClashFinish();' },
+      { code: 'function twoSum(nums,target) { nums[0]=0; nums[1]=target; return [0,1]; }' }
     ];
     for (const failure of failures) {
       await verifySubmission({ problemId: 2, language, expectPass: false, ...failure });

@@ -126,6 +126,18 @@ app.post('/api/auth/profile', (req, res) => {
 
 // ==================== GAME ENDPOINTS ====================
 
+app.get('/api/game/options', (req, res) => {
+  res.json(matchSocketHandler.getMatchOptions());
+});
+
+app.post('/api/game/rooms', (req, res) => {
+  try {
+    res.status(201).json(matchSocketHandler.createMatch(req.body));
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 // Create quick match
 app.post('/api/game/quick-match', (req, res) => {
   try {

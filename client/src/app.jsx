@@ -16,6 +16,7 @@ import Tournaments from './pages/Tournaments';
 import BattleArena from './pages/BattleArena';
 import CorporateSponsorDashboard from './components/CorporateSponsorDashboard';
 import authService from './services/api/authService';
+import { readMatchSession, openMatchSession, clearMatchSession } from './utils/matchSession';
 import './styles/global.css';
 
 // Create and export App Context
@@ -52,16 +53,29 @@ const App = () => {
         const initializedUser = initializeUser(userData);
         setUser(initializedUser);
         setIsAuthenticated(true);
-        setCurrentPage('dashboard');
+        const savedMatch = readMatchSession(userData.id);
+        if (savedMatch) {
+          setRoomData({ roomCode: savedMatch.roomCode, preferences: savedMatch.preferences });
+          setCurrentPage('game-room');
+        } else setCurrentPage('dashboard');
       } catch (error) {
         console.error('Error parsing saved user data:', error);
         localStorage.removeItem('codeClashUser');
+      }
+    } else {
+      const savedMatch = readMatchSession(null);
+      if (savedMatch) {
+        setRoomData({ roomCode: savedMatch.roomCode, preferences: savedMatch.preferences });
+        setCurrentPage('game-room');
       }
     }
   }, []);
 
   // Enhanced navigation function
   const navigate = (page, data = {}) => {
+    if (page === 'game-room' && data.roomCode) {
+      openMatchSession(data.roomCode, user?.id, data.preferences);
+    } else if (currentPage === 'game-room') clearMatchSession();
     console.log('Navigating to:', page, 'with data:', data);
     
     // Handle room data for battle-related pages
@@ -117,6 +131,7 @@ const App = () => {
       setRoomData(null);
       setPageData({});
       localStorage.removeItem('codeClashUser');
+      clearMatchSession();
       navigate('landing');
       console.log('Logout successful');
     } catch (error) {
@@ -297,11 +312,13 @@ const App = () => {
       case 'game-room':
         return (
           <GameRoom 
+            key={roomData?.roomCode}
             navigate={navigate} 
             user={user}
             roomCode={roomData?.roomCode}
             difficulty={roomData?.difficulty}
             problem={roomData?.problem}
+            initialPreferences={roomData?.preferences}
             onUpdateProfile={handleProfileUpdate} // Legacy support
             onUpdateUser={handleUpdateUser} // NEW: Pass the victory update function
           />

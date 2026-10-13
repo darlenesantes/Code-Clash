@@ -2,15 +2,41 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Clock, User, CheckCircle, XCircle, Code, Trophy, Target, Zap, Settings, Copy, RotateCcw, Download, Users, Crown, Wifi, WifiOff, Swords, Monitor, Activity } from 'lucide-react';
 import VictoryPopup from '../components/VictoryPopup'; 
 import gameSocket from '../sockets/socket';
+import { openMatchSession, saveMatchSession } from '../utils/matchSession';
+
+const DIFFICULTY_STYLES = {
+  easy: 'bg-green-500/20 text-green-400 border-green-500/30',
+  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  hard: 'bg-red-500/20 text-red-400 border-red-500/30'
+};
+
+const MatchResultDialog = ({ result, onBack }) => (
+  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="match-result-title" aria-describedby="match-result-message" className="bg-gray-900 border border-gray-700 rounded-2xl max-w-md w-full p-8 text-center">
+      {result.cancelled ? <Users className="w-12 h-12 text-yellow-400 mx-auto mb-4" /> : result.timedOut ? (
+        <Clock className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+      ) : <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />}
+      <h2 id="match-result-title" className="text-2xl font-bold text-white mb-3">
+        {result.cancelled ? 'Match cancelled' : result.timedOut ? 'Time expired' : 'Defeat'}
+      </h2>
+      <p id="match-result-message" className="text-gray-300 mb-6">{result.message}</p>
+      <button autoFocus onClick={onBack} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">Back to Arena</button>
+    </div>
+  </div>
+);
 
 const GameRoom = ({ 
   navigate, 
   roomCode, 
+  initialPreferences,
   user = { name: 'Player1', avatar: null },
   onUpdateUser // CRITICAL: This comes from App.jsx for victory updates
 }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
-  const [codeDrafts, setCodeDrafts] = useState({ javascript: '// Start coding here...\n', python: '# Start coding here...\n' });
+  const [session] = useState(() => openMatchSession(roomCode, user?.id, initialPreferences));
+  const draftProblemIdRef = useRef(session.problemId);
+  const [selectedLanguage, setSelectedLanguage] = useState(session.selectedLanguage || 'javascript');
+  const [codeDrafts, setCodeDrafts] = useState(session.codeDrafts || { javascript: '// Start coding here...\n', python: '# Start coding here...\n' });
+  const [matchReady, setMatchReady] = useState(false);
   const code = codeDrafts[selectedLanguage];
   const setCode = (value) => setCodeDrafts((drafts) => ({ ...drafts, [selectedLanguage]: value }));
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -23,10 +49,15 @@ const GameRoom = ({
   const [submissionMessage, setSubmissionMessage] = useState('');
   const [editorLocked, setEditorLocked] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
+  const [endResult, setEndResult] = useState(null);
+  const [opponentConnection, setOpponentConnection] = useState(null);
+  const [reconnectSeconds, setReconnectSeconds] = useState(0);
   const [testResults, setTestResults] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [matchPreferences, setMatchPreferences] = useState(initialPreferences || session.preferences || null);
   const [deadlineAt, setDeadlineAt] = useState(null);
   const codeEditorRef = useRef(null);
+  const matchEndedRef = useRef(false);
   const guestUsernameRef = useRef(`Player-${Math.random().toString(36).slice(2, 7)}`);
 
   // Opponent AI messages for different phases
@@ -116,6 +147,23 @@ const GameRoom = ({
   const username = user?.displayName || user?.name || guestUsernameRef.current;
   const userId = user?.id;
   const userEmail = user?.email;
+  const leaveAndNavigate = async (page) => {
+    if (!matchEndedRef.current) await gameSocket.leaveMatch(roomCode, session.resumeToken);
+    navigate(page);
+  };
+
+  useEffect(() => {
+    if (!opponentConnection?.reconnectBy) return undefined;
+    const update = () => setReconnectSeconds(Math.max(0, Math.ceil((opponentConnection.reconnectBy - Date.now()) / 1000)));
+    update();
+    const timer = setInterval(update, 250);
+    return () => clearInterval(timer);
+  }, [opponentConnection]);
+
+  useEffect(() => {
+    Object.assign(session, { codeDrafts, selectedLanguage, problemId: draftProblemIdRef.current, preferences: matchPreferences });
+    saveMatchSession(session);
+  }, [session, codeDrafts, selectedLanguage, matchPreferences]);
 
   // Join the real Socket.IO match and listen for server-owned match events.
   useEffect(() => {
@@ -126,28 +174,39 @@ const GameRoom = ({
 
     const handleConnectionStatus = ({ status }) => {
       setConnectionStatus(status);
+      setMatchReady(false);
       if (status === 'connected') {
-        gameSocket.joinMatch(roomCode, username);
+        gameSocket.joinMatch(roomCode, username, session.resumeToken);
       }
     };
 
     const handleGameStarted = ({ problem: selectedProblem, deadlineAt: matchDeadlineAt, durationMs }) => {
+      setMatchReady(true);
+      matchEndedRef.current = false;
+      setEndResult(null);
+      setShowVictory(false);
+      setOpponentConnection(null);
+      setTestResults(null);
       setServerProblem(selectedProblem);
       setMatchStatus('active');
       setGameStatus('active');
       setDeadlineAt(matchDeadlineAt);
       setMatchDurationSeconds(durationMs / 1000);
       setTimeRemaining(Math.max(0, Math.ceil((matchDeadlineAt - Date.now()) / 1000)));
-      setSelectedLanguage('javascript');
-      setCodeDrafts({
-        javascript: selectedProblem?.functionSignature?.javascript || '// Start coding here...\n',
-        python: selectedProblem?.functionSignature?.python || '# Start coding here...\n'
-      });
+      if (draftProblemIdRef.current !== selectedProblem?.id || !session.codeDrafts) {
+        setSelectedLanguage('javascript');
+        setCodeDrafts({
+          javascript: selectedProblem?.functionSignature?.javascript || '// Start coding here...\n',
+          python: selectedProblem?.functionSignature?.python || '# Start coding here...\n'
+        });
+      }
+      draftProblemIdRef.current = selectedProblem?.id;
       setEditorLocked(false);
       setSubmissionMessage('');
     };
 
     const handleSubmissionResult = ({ results, error }) => {
+      if (matchEndedRef.current) return;
       const passed = results?.passed || 0;
       const total = results?.total || 0;
       setSubmissionMessage(error || (total ? `${passed}/${total} server tests passed.` : 'The submitted solution did not pass all tests.'));
@@ -159,15 +218,23 @@ const GameRoom = ({
       });
     };
 
-    const handleMatchOver = ({ winnerId, winnerName, reason, results }) => {
+    const handleMatchOver = ({ winnerId, winnerName, reason, results, status, departedPlayerId }) => {
       const timedOut = reason === 'time_expired';
-      const didWin = !timedOut && winnerId === gameSocket.getSocketId();
+      const cancelled = status === 'cancelled' || ['player_left', 'player_abandoned'].includes(reason);
+      const ownDeparture = departedPlayerId === gameSocket.getPlayerId();
+      const cancellationMessage = reason === 'player_left'
+        ? `${ownDeparture ? 'You left' : 'Your opponent left'} the match. No winner was declared.`
+        : `${ownDeparture ? 'Your reconnection window expired' : 'Your opponent did not reconnect within 30 seconds'}. No winner was declared.`;
+      const didWin = !timedOut && !cancelled && Boolean(winnerId) && winnerId === gameSocket.getPlayerId();
+      matchEndedRef.current = true;
       setMatchStatus('completed');
-      setGameStatus(timedOut ? 'finished' : didWin ? 'victory' : 'defeat');
+      setGameStatus(timedOut || cancelled ? 'finished' : didWin ? 'victory' : 'defeat');
+      setOpponentConnection(null);
       setDeadlineAt(null);
       setEditorLocked(true);
+      if (timedOut) setTimeRemaining(0);
       setSubmissionMessage(
-        timedOut ? 'Time expired. No player solved the problem.' :
+        cancelled ? cancellationMessage : timedOut ? 'Time expired. No player solved the problem.' :
           didWin ? 'Your solution won the match.' : `${winnerName || 'Your opponent'} won the match.`
       );
       if (didWin && results) {
@@ -177,17 +244,43 @@ const GameRoom = ({
           total: results.total,
           details: results.results
         });
+      } else {
+        setTestResults((previous) => previous === 'running' ? null : previous);
       }
+      setEndResult(didWin ? null : {
+        timedOut,
+        cancelled,
+        message: cancelled ? cancellationMessage : timedOut ? 'No player solved the problem before the deadline.' : `${winnerName || 'Your opponent'} won the match.`
+      });
       setShowVictory(didWin);
     };
 
     const handleLockEditor = () => setEditorLocked(true);
+    const handleMatchSettings = ({ preferences }) => setMatchPreferences(preferences);
+    const handlePlayerConnection = (player) => {
+      if (matchEndedRef.current || player.playerId === gameSocket.getPlayerId()) return;
+      setOpponentConnection(player.connected ? null : player);
+    };
+    const handleMatchState = (state) => {
+      setMatchReady(true);
+      setMatchPreferences(state.preferences);
+      if (state.problem) handleGameStarted(state);
+      setOpponentConnection(state.players?.find((player) => player.playerId !== state.playerId && !player.connected) || null);
+      if (state.outcome) handleMatchOver(state.outcome);
+      else if (state.pending) {
+        setTestResults('running');
+        setSubmissionMessage('Submitting solution to the server...');
+      } else if (state.submissionResult) handleSubmissionResult(state.submissionResult);
+    };
 
     gameSocket.on('connection_status', handleConnectionStatus);
     gameSocket.onGameStarted(handleGameStarted);
     gameSocket.on('submission_result', handleSubmissionResult);
     gameSocket.on('match_over', handleMatchOver);
     gameSocket.on('lock_editor', handleLockEditor);
+    gameSocket.on('match_settings', handleMatchSettings);
+    gameSocket.on('match_state', handleMatchState);
+    gameSocket.on('player_connection', handlePlayerConnection);
     gameSocket.connect({ id: userId, name: username, email: userEmail });
 
     return () => {
@@ -196,9 +289,12 @@ const GameRoom = ({
       gameSocket.off('submission_result', handleSubmissionResult);
       gameSocket.off('match_over', handleMatchOver);
       gameSocket.off('lock_editor', handleLockEditor);
+      gameSocket.off('match_settings', handleMatchSettings);
+      gameSocket.off('match_state', handleMatchState);
+      gameSocket.off('player_connection', handlePlayerConnection);
       gameSocket.disconnect();
     };
-  }, [roomCode, username, userId, userEmail]);
+  }, [roomCode, username, userId, userEmail, session]);
 
   // Timer countdown
   useEffect(() => {
@@ -249,7 +345,7 @@ const GameRoom = ({
   }, [code]);
 
   const handleSubmit = () => {
-    if (matchStatus !== 'active' || editorLocked || timeRemaining === 0 || !gameSocket.isSocketConnected()) {
+    if (!matchReady || matchStatus !== 'active' || editorLocked || timeRemaining === 0 || !gameSocket.isSocketConnected()) {
       return;
     }
 
@@ -268,6 +364,18 @@ const GameRoom = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const reconnectNotice = opponentConnection && (
+    <p role="status" className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 px-4 py-3 text-sm">
+      {reconnectSeconds > 0
+        ? `Opponent disconnected. ${reconnectSeconds} seconds to reconnect before the match is cancelled.`
+        : 'Opponent disconnected. Waiting for the server to resolve the match...'}
+    </p>
+  );
+
+  if (endResult && !serverProblem) {
+    return <MatchResultDialog result={endResult} onBack={() => leaveAndNavigate('battle-arena')} />;
+  }
+
   if (matchStatus === 'waiting') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex items-center justify-center px-6">
@@ -278,6 +386,13 @@ const GameRoom = ({
           <div className="text-3xl font-mono font-bold text-cyan-400 tracking-widest mb-6">
             {roomCode || 'NO ROOM'}
           </div>
+          {matchPreferences && (
+            <p className="text-sm text-gray-300 mb-4">
+              Difficulty: <span className="capitalize">{matchPreferences.difficulty}</span> / Topic: <span className="capitalize">{matchPreferences.topic}</span>
+            </p>
+          )}
+          {submissionMessage && <p role="alert" className="text-sm text-red-400 mb-4">{submissionMessage}</p>}
+          {reconnectNotice}
           <div className="flex items-center justify-center gap-2 text-sm text-gray-300">
             {connectionStatus === 'connected' ? (
               <Wifi className="w-4 h-4 text-green-400" />
@@ -287,7 +402,7 @@ const GameRoom = ({
             <span>{connectionStatus === 'connected' ? 'Connected Ã¢â‚¬â€ waiting for player 2' : 'Connecting to match server...'}</span>
           </div>
           <button
-            onClick={() => navigate('battle-arena')}
+            onClick={() => leaveAndNavigate('battle-arena')}
             className="mt-6 text-gray-400 hover:text-white transition-colors"
           >
             Leave match
@@ -304,7 +419,7 @@ const GameRoom = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => navigate('battle-arena')}
+              onClick={() => leaveAndNavigate('battle-arena')}
               className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -341,6 +456,7 @@ const GameRoom = ({
         </div>
       </div>
 
+      {reconnectNotice}
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Panel - Problem & Progress */}
         <div className="w-1/2 border-r border-gray-700/50 flex flex-col">
@@ -349,7 +465,7 @@ const GameRoom = ({
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-white">{problem.title}</h2>
-                <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg font-bold text-sm border border-green-500/30">
+                <span className={`px-3 py-1 rounded-lg font-bold text-sm border ${DIFFICULTY_STYLES[String(problem.difficulty).toLowerCase()] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
                   {problem.difficulty}
                 </span>
               </div>
@@ -358,14 +474,17 @@ const GameRoom = ({
               <div className="space-y-4">
                 <h3 className="text-lg font-bold text-white">Examples:</h3>
                 {problem.examples.length === 0 && (
-                  <p className="text-sm text-gray-400">Examples are evaluated securely when you submit.</p>
+                  <p className="text-sm text-gray-400">No examples are available for this problem.</p>
                 )}
                 {problem.examples.map((example, index) => (
                   <div key={index} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
                     <div className="text-sm text-gray-400 mb-1">Input:</div>
-                    <div className="text-cyan-400 font-mono mb-2">{example.input}</div>
+                    <div className="text-cyan-400 font-mono mb-2 whitespace-pre-wrap break-words">{example.input}</div>
                     <div className="text-sm text-gray-400 mb-1">Output:</div>
-                    <div className="text-green-400 font-mono">{example.output}</div>
+                    <div className="text-green-400 font-mono whitespace-pre-wrap break-words">{example.output}</div>
+                    {example.acceptsOtherOutputs && (
+                      <p className="text-sm text-gray-400 mt-2">One valid output is shown. Other valid outputs may also be accepted.</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -428,7 +547,7 @@ const GameRoom = ({
                     aria-label="Solution language"
                     value={selectedLanguage}
                     onChange={(event) => setSelectedLanguage(event.target.value)}
-                    disabled={editorLocked || matchStatus !== 'active' || timeRemaining === 0 || testResults === 'running'}
+                    disabled={!matchReady || editorLocked || matchStatus !== 'active' || timeRemaining === 0 || testResults === 'running'}
                     className="rounded-lg bg-gray-800 px-3 py-1 font-medium text-yellow-400"
                   >
                     <option value="javascript">JavaScript</option>
@@ -439,7 +558,7 @@ const GameRoom = ({
               <div className="flex items-center space-x-2">
                 <button 
                   onClick={handleSubmit}
-                  disabled={editorLocked || matchStatus !== 'active' || timeRemaining === 0 || testResults === 'running'}
+                  disabled={!matchReady || editorLocked || matchStatus !== 'active' || timeRemaining === 0 || testResults === 'running'}
                   className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
                 >
                   <CheckCircle className="w-4 h-4" />
@@ -504,6 +623,10 @@ const GameRoom = ({
         </div>
       </div>
       
+      {endResult && (
+        <MatchResultDialog result={endResult} onBack={() => leaveAndNavigate('battle-arena')} />
+      )}
+
       {/* VICTORY POPUP - PROPERLY INTEGRATED */}
       {showVictory && (
         <VictoryPopup
@@ -552,6 +675,9 @@ const GameRoom = ({
           }}
           isFirstWin={false}
           onUpdateProfile={(updatedUserStats) => {
+            if (session.victoryRewardApplied) return;
+            session.victoryRewardApplied = true;
+            saveMatchSession(session);
             console.log('Victory popup updating user stats:', updatedUserStats);
             
             // Calculate the new stats based on actual battle results
