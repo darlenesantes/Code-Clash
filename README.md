@@ -2,6 +2,8 @@
 
 **LeetCode Battles. Real-Time Duels.**
 
+**[Live Demo](https://code-clash-mu-blond.vercel.app/)**
+
 CodeClash turns interview preparation into a real-time coding competition. Two players join a private room, receive the same problem, and race to submit a correct solution. The server judges submissions through Judge0 and declares the first fully correct submission the winner.
 
 The current MVP focuses on one working two-player match. Problems and expected answers come from local JSON files; no LeetCode API or database is required.
@@ -26,37 +28,37 @@ The current MVP focuses on one working two-player match. Problems and expected a
 
 Only problems with implemented runners are eligible for matches, even if the JSON catalog contains additional entries.
 
-| Problem ID | Problem | Topic | Difficulty | Stored tests |
-| --- | --- | --- | --- | --- |
-| 2 | Two Sum | Arrays | Easy | 10 |
-| 3 | Add Two Numbers | Linked list | Medium | 10 |
-| 4 | Binary Tree Inorder Traversal | Binary tree | Medium | 10 |
-| 5 | Number of Connected Components in an Undirected Graph | Graph | Medium | 10 |
+| Problem ID | Problem                                               | Topic       | Difficulty | Stored tests |
+| ---------- | ----------------------------------------------------- | ----------- | ---------- | ------------ |
+| 2          | Two Sum                                               | Arrays      | Easy       | 10           |
+| 3          | Add Two Numbers                                       | Linked list | Medium     | 10           |
+| 4          | Binary Tree Inorder Traversal                         | Binary tree | Medium     | 10           |
+| 5          | Number of Connected Components in an Undirected Graph | Graph       | Medium     | 10           |
 
 Every supported problem can be played in **JavaScript** (Judge0 language ID `63`) or **Python 3** (`71`). Python submissions use the standalone functions supplied in the starter code; the runners provide the required linked-list and tree node types.
 
 Match duration depends on the selected problem:
 
-| Difficulty | Duration | Currently available |
-| --- | --- | --- |
-| Easy | 15 minutes | Yes |
-| Medium | 20 minutes | Yes |
-| Hard | 30 minutes | No supported Hard problem yet |
+| Difficulty | Duration   | Currently available           |
+| ---------- | ---------- | ----------------------------- |
+| Easy       | 15 minutes | Yes                           |
+| Medium     | 20 minutes | Yes                           |
+| Hard       | 30 minutes | No supported Hard problem yet |
 
 Two Sum accepts valid indices in either order, including another valid pair when the input permits one. Validation uses the original inputs and requires distinct, in-range integer indices.
 
 ## Tech stack
 
-| Layer | Technologies |
-| --- | --- |
-| Frontend | React 18, Create React App / `react-scripts` 5, Tailwind CSS, Lucide React |
-| Real-time communication | Socket.IO 4 client and server |
-| Backend | Node.js 22.x, Express 4, Axios, `google-auth-library`, dotenv for local development |
-| Code execution | Judge0 CE through RapidAPI; JavaScript and Python runners |
-| Data | `server/data/problems.json`, in-memory rooms, browser storage for profiles and recovery |
-| Tooling | npm workspaces, shared lockfile, nodemon, concurrently |
-| Validation | Node test runner, frontend Jest tests, Python 3 for local runner checks |
-| Deployment | Vercel for the frontend; one Render Web Service for the backend |
+| Layer                   | Technologies                                                                            |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| Frontend                | React 18, Create React App / `react-scripts` 5, Tailwind CSS, Lucide React              |
+| Real-time communication | Socket.IO 4 client and server                                                           |
+| Backend                 | Node.js 22.x, Express 4, Axios, `google-auth-library`, dotenv for local development     |
+| Code execution          | Judge0 CE through RapidAPI; JavaScript and Python runners                               |
+| Data                    | `server/data/problems.json`, in-memory rooms, browser storage for profiles and recovery |
+| Tooling                 | npm workspaces, shared lockfile, nodemon, concurrently                                  |
+| Validation              | Node test runner, frontend Jest tests, Python 3 for local runner checks                 |
+| Deployment              | Vercel for the frontend; one Render Web Service for the backend                         |
 
 Legacy database, password, and JWT dependencies remain in the repository, but the current match flow does not use a database or JWT-based server sessions. The code editor is a React input, not Monaco.
 
@@ -137,18 +139,18 @@ if (!(Test-Path server/.env)) { Copy-Item server/.env.example server/.env }
 
 Replace placeholders with your own values:
 
-| File | Variable | Local value or purpose |
-| --- | --- | --- |
-| `client/.env` | `REACT_APP_API_URL` | `http://localhost:3001` |
-| `client/.env` | `REACT_APP_SOCKET_URL` | `http://localhost:3001` |
-| `client/.env` | `REACT_APP_GOOGLE_CLIENT_ID` | Your real Google web client ID |
-| `server/.env` | `NODE_ENV` | `development` |
-| `server/.env` | `PORT` | `3001` |
-| `server/.env` | `CLIENT_ORIGIN` | `http://localhost:3000` |
-| `server/.env` | `GOOGLE_CLIENT_ID` | The same Google client ID as the frontend |
-| `server/.env` | `JUDGE0_API_URL` | Your subscribed `/submissions` endpoint |
-| `server/.env` | `JUDGE0_API_HOST` | Your RapidAPI endpoint hostname |
-| `server/.env` | `JUDGE0_API_KEY` | Your private RapidAPI key |
+| File          | Variable                     | Local value or purpose                    |
+| ------------- | ---------------------------- | ----------------------------------------- |
+| `client/.env` | `REACT_APP_API_URL`          | `http://localhost:3001`                   |
+| `client/.env` | `REACT_APP_SOCKET_URL`       | `http://localhost:3001`                   |
+| `client/.env` | `REACT_APP_GOOGLE_CLIENT_ID` | Your real Google web client ID            |
+| `server/.env` | `NODE_ENV`                   | `development`                             |
+| `server/.env` | `PORT`                       | `3001`                                    |
+| `server/.env` | `CLIENT_ORIGIN`              | `http://localhost:3000`                   |
+| `server/.env` | `GOOGLE_CLIENT_ID`           | The same Google client ID as the frontend |
+| `server/.env` | `JUDGE0_API_URL`             | Your subscribed `/submissions` endpoint   |
+| `server/.env` | `JUDGE0_API_HOST`            | Your RapidAPI endpoint hostname           |
+| `server/.env` | `JUDGE0_API_KEY`             | Your private RapidAPI key                 |
 
 For Judge0 CE on RapidAPI, the template uses `https://judge0-ce.p.rapidapi.com/submissions` and host `judge0-ce.p.rapidapi.com`. Confirm these match your subscription.
 
@@ -215,16 +217,16 @@ This command loads your local `server/.env`, sends code and test inputs to Judge
 
 Deploy the frontend to **Vercel** and the long-running Express/Socket.IO backend to **Render**. Keep the repository root as both services' root directory so npm can resolve the workspaces and shared lockfile. Configure both hosts to use the same committed branch containing the MVP fixes.
 
-| Setting | Vercel frontend | Render backend |
-| --- | --- | --- |
-| Service / framework | Single frontend project, **Other** | Node **Web Service** |
-| Root directory | `./` (repository root) | Leave blank (repository root) |
-| Install / build dependencies | `npm ci --include=dev` | `npm ci --include=dev` |
-| Build command | `npm run build --workspace=client` | Dependency installation command above |
-| Output directory | `client/build` | Not applicable |
-| Start command | Static frontend hosting | `npm start --workspace=server` |
-| Node version | `22.x` | `22.x` |
-| Health check | Not applicable | `/health` |
+| Setting                      | Vercel frontend                    | Render backend                        |
+| ---------------------------- | ---------------------------------- | ------------------------------------- |
+| Service / framework          | Single frontend project, **Other** | Node **Web Service**                  |
+| Root directory               | `./` (repository root)             | Leave blank (repository root)         |
+| Install / build dependencies | `npm ci --include=dev`             | `npm ci --include=dev`                |
+| Build command                | `npm run build --workspace=client` | Dependency installation command above |
+| Output directory             | `client/build`                     | Not applicable                        |
+| Start command                | Static frontend hosting            | `npm start --workspace=server`        |
+| Node version                 | `22.x`                             | `22.x`                                |
+| Health check                 | Not applicable                     | `/health`                             |
 
 The root [vercel.json](vercel.json) supplies the frontend build settings. Import the frontend as a single project; the backend remains on Render.
 
