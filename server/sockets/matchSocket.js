@@ -1,124 +1,134 @@
-// Store matches in memory (matchCode -> [sockets])
 const { runJudge0 } = require("../utils/judge0Helper");
+const { RESULT_PREFIX, buildJsWrappedCode } = require("../utils/wrappers");
+const problemUtils = require("../utils/problemUtils");
+
 const matchRooms = {};
 const matchData = {};
-const {
-  buildJsWrappedCode,
-  formatTestCasesAsStdin
-} = require("../utils/wrappers");
-const problems = require("../data/problems.json");
+const SUPPORTED_PROBLEM_IDS = new Set([2, 3, 4, 5]);
+const JAVASCRIPT_LANGUAGE_ID = 63;
 
-async function runAllTestCases(code, languageId, testCases) {
-  const results = [];
+function publicProblem(problem) {
+  return {
+    id: problem.id,
+    title: problem.title,
+    category: problem.category,
+    difficulty: problem.difficulty,
+    description: problem.description,
+    functionSignature: { javascript: problem.functionSignature.javascript }
+  };
+}
 
-  for (const { input, expectedOutput } of testCases) {
-    try {
-      const result = await runJudge0(code, languageId, expectedOutput, input);
-      results.push({
-        input,
-        expectedOutput,
-        actual: (result.stdout || result.stderr || "").trim(),
-        passed: result.status?.id === 3
-      });
-    } catch (err) {
-      results.push({
-        input,
-        expectedOutput,
-        actual: err.message || "Error during execution",
-        passed: false
-      });
-    }
+function chooseProblem() {
+  const supported = problemUtils.getAllProblems().filter((problem) =>
+    SUPPORTED_PROBLEM_IDS.has(problem.id) && problemUtils.validateProblem(problem).valid
+  );
+  return supported[Math.floor(Math.random() * supported.length)] || null;
+}
+
+function parseJudgeResult(stdout) {
+  const resultLine = String(stdout || "").split(/\r?\n/)
+    .filter((line) => line.startsWith(RESULT_PREFIX)).pop();
+  if (!resultLine) return null;
+
+  try {
+    const result = JSON.parse(resultLine.slice(RESULT_PREFIX.length));
+    if (!Number.isInteger(result.passed) || !Number.isInteger(result.total) || !Array.isArray(result.results)) return null;
+    return result;
+  } catch {
+    return null;
   }
-
-  return results;
 }
 
-//every time a user joins, it will set up all socket logic for that user
 function matchSocketHandler(socket, io) {
+  socket.emit("server_message", "Welcome to Code Clash!");
 
-    //sends welcome message to new users
-    socket.emit("server_message", "Welcome to Code Clash!");
-
-    //User wants to join a match
-    socket.on ("join_match",({ matchCode, username}) => {
-        socket.data.username = username; // Store username on socket
-        
-        // Create match if it doesn't exist
-        if (!matchRooms[matchCode]) {
-            matchRooms[matchCode] = [];
+  socket.on("join_match", ({ matchCode, username } = {}) => {
+    if (typeof matchCode !== "string" || !matchCode.trim()) {
+      socket.emit("submission_result", { error: "A match code is required." });
+      return;
     }
 
-        matchRooms[matchCode].push(socket);
-        socket.join(matchCode); // Join the room
+    const roomCode = matchCode.trim();
+    socket.data.username = typeof username === "string" && username.trim() ? username.trim() : "Player";
+    if (!matchRooms[roomCode]) matchRooms[roomCode] = [];
 
-        console.log(`${username} joined match ${matchCode}`);
-
-        // If 2 players are in, start the game
-        if (matchRooms[matchCode].length === 2) {
-            const problem = problems.find(p => p.id === 2); // Pick any for now — maybe random later
-            if (!problem) return;
-
-            matchData[matchCode] = { problem };
-
-            io.to(matchCode).emit("start_game", {
-                problem: problem.description
-            });
-            }
-    });
-    
-    // Listen for a test message from the client
-    socket.on("client_message", (msg) => {
-        console.log(`Message from client ${socket.id}:`, msg);
-    });
-
-    // Listen for a submission from the client
-    socket.on("submit_code", async ({ matchCode, code, languageId }) => {
-        try {
-            const problem = matchData[matchCode]?.problem;
-            if (!problem) throw new Error("Problem not found");
-
-            const wrappedCode = buildJsWrappedCode(code, problem.testCases);
-            const stdin = formatTestCasesAsStdin(problem.testCases);
-
-            const result = await runJudge0(wrappedCode, languageId, "", stdin);
-            const output = (result.stdout || result.stderr || "").trim();
-
-            // Check if all tests passed by searching for ❌
-            const passedAll = !output.includes("❌");
-
-            if (passedAll) {
-            io.to(matchCode).emit("match_over", {
-                winner: socket.data.username,
-                output
-            });
-            socket.to(matchCode).emit("lock_editor");
-            } else {
-            socket.emit("submission_result", {
-                passed: false,
-                output
-            });
-            }
-
-}       catch (err) {
-        socket.emit("submission_result", {
-            passed: false,
-             error: err.message
-        });
+    if (matchRooms[roomCode].some((player) => player.id === socket.id)) return;
+    if (matchRooms[roomCode].length >= 2) {
+      socket.emit("submission_result", { error: "This match already has two players." });
+      return;
     }
-});
-    
-    // Disconnect cleanup
-    socket.on("disconnect", () => {
-        console.log(`User disconnected: ${socket.id}`);
 
-    for (const [code, sockets] of Object.entries(matchRooms)) {
-        matchRooms[code] = sockets.filter(s => s.id !== socket.id);
-        if (matchRooms[code].length === 0) {
-            delete matchRooms[code];
-            }
-        }
-    });
+    matchRooms[roomCode].push(socket);
+    socket.join(roomCode);
+    console.log(`${socket.data.username} joined match ${roomCode}`);
+
+    if (matchRooms[roomCode].length === 2 && !matchData[roomCode]) {
+      const problem = chooseProblem();
+      if (!problem) {
+        io.to(roomCode).emit("submission_result", { error: "No runnable problem is configured." });
+        return;
+      }
+
+      matchData[roomCode] = { problem, status: "active", winner: null };
+      io.to(roomCode).emit("start_game", { problem: publicProblem(problem) });
+    }
+  });
+
+  socket.on("submit_code", async ({ matchCode, code, languageId } = {}) => {
+    try {
+      const match = matchData[matchCode];
+      if (!match || match.status !== "active" || !matchRooms[matchCode]?.some((player) => player.id === socket.id)) {
+        throw new Error("There is no active match for this submission.");
+      }
+      if (languageId !== JAVASCRIPT_LANGUAGE_ID) {
+        throw new Error("The MVP judge currently supports JavaScript only.");
+      }
+      if (typeof code !== "string" || !code.trim()) throw new Error("Submit a JavaScript solution first.");
+      if (code.length > 50000) throw new Error("The solution is too large to evaluate.");
+
+      const wrappedCode = buildJsWrappedCode(code, match.problem.testCases, match.problem.category);
+      const judgeResult = await runJudge0(wrappedCode, JAVASCRIPT_LANGUAGE_ID);
+      const statusId = judgeResult.status?.id;
+      if (statusId !== 3) {
+        const error = judgeResult.compile_output || judgeResult.stderr || judgeResult.message || "The solution could not run.";
+        socket.emit("submission_result", { passed: false, error });
+        return;
+      }
+
+      const results = parseJudgeResult(judgeResult.stdout);
+      if (!results) {
+        socket.emit("submission_result", { passed: false, error: "The judge returned an invalid test result." });
+        return;
+      }
+
+      const passedAll = results.total > 0 && results.passed === results.total;
+      if (!passedAll) {
+        socket.emit("submission_result", { passed: false, results });
+        return;
+      }
+
+      // Set match state before emitting so two near-simultaneous correct submissions
+      // cannot both win.
+      if (match.status === "active") {
+        match.status = "completed";
+        match.winner = socket.data.username;
+        io.to(matchCode).emit("match_over", { winner: match.winner, results });
+        socket.to(matchCode).emit("lock_editor");
+      }
+    } catch (error) {
+      socket.emit("submission_result", { passed: false, error: error.message });
+    }
+  });
+
+  socket.on("disconnect", () => {
+    for (const [code, players] of Object.entries(matchRooms)) {
+      matchRooms[code] = players.filter((player) => player.id !== socket.id);
+      if (matchRooms[code].length === 0) {
+        delete matchRooms[code];
+        delete matchData[code];
+      }
+    }
+  });
 }
-
 
 module.exports = matchSocketHandler;
